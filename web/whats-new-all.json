@@ -1,6 +1,79 @@
 {
   "entries": [
     {
+      "week_ending": "2026-10-16",
+      "from": "2026-10-09",
+      "to": "2026-10-16",
+      "generated": "2026-10-16T02:10:52-07:00",
+      "commits_total": 7,
+      "commits_listed": 2,
+      "commits": [
+        {
+          "sha": "a360362",
+          "summary": "Add field-level JSONL corpus diff tool",
+          "date": "2026-10-09T15:03:32-07:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "8fc4e70",
+          "summary": "Refresh seed: add 4 visitor phrasings (faq_778, 1114, 1170, 1343)",
+          "date": "2026-10-09T14:54:59-07:00",
+          "area": "Answers",
+          "files": 1,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "f0257e9",
+          "summary": "Short-question prompt: wording that fits either layout",
+          "date": "2026-10-09T09:47:12-07:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "e22aed4",
+          "summary": "One- and two-word questions are asked to rephrase, with suggestions",
+          "date": "2026-10-09T09:10:48-07:00",
+          "area": "Ask the Docent",
+          "files": 6,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "43e9ee9",
+          "summary": "The 1946 manual never answers a one- or two-word question",
+          "date": "2026-10-09T09:10:48-07:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "cf4854e",
+          "summary": "Boat boost needs the record to match more than the boat's name",
+          "date": "2026-10-09T09:09:03-07:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "a448f6f",
+          "summary": "What's New: week ending 2026-10-09",
+          "date": "2026-10-09T09:14:38Z",
+          "area": "Pages and layout",
+          "files": 2,
+          "public": false,
+          "reason": "an editing screen, not a visitor page"
+        }
+      ]
+    },
+    {
       "week_ending": "2026-10-09",
       "from": "2026-10-02",
       "to": "2026-10-09",

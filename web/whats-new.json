@@ -1,6 +1,56 @@
 {
   "entries": [
     {
+      "week_ending": "2026-10-16",
+      "from": "2026-10-09",
+      "to": "2026-10-16",
+      "generated": "2026-10-16T02:10:52-07:00",
+      "commits_total": 7,
+      "commits_listed": 2,
+      "totals": [
+        {
+          "label": "Answers",
+          "was": 376,
+          "now": 376
+        },
+        {
+          "label": "Videos",
+          "was": 108,
+          "now": 108
+        },
+        {
+          "label": "Museums listed",
+          "was": 20,
+          "now": 20
+        },
+        {
+          "label": "Museum pages",
+          "was": 2,
+          "now": 2
+        }
+      ],
+      "groups": [
+        {
+          "area": "Answers",
+          "changes": [
+            {
+              "sha": "8fc4e70",
+              "summary": "Refresh seed: add 4 visitor phrasings (faq_778, 1114, 1170, 1343)"
+            }
+          ]
+        },
+        {
+          "area": "Ask the Docent",
+          "changes": [
+            {
+              "sha": "e22aed4",
+              "summary": "One- and two-word questions are asked to rephrase, with suggestions"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "week_ending": "2026-10-09",
       "from": "2026-10-02",
       "to": "2026-10-09",
