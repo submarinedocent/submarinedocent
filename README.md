@@ -17,7 +17,7 @@ You need Python 3.9 or newer. Nothing else — no database, no vector store, no
 API key.
 
 ```bash
-git clone https://github.com/igreisman/submarinedocent.git
+git clone https://github.com/submarinedocent/submarinedocent.git
 cd submarinedocent
 
 python3 -m venv .venv

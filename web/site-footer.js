@@ -14,7 +14,7 @@
  */
 const SiteFooter = (() => {
   const COPY = '&copy; submarinedocent.org';
-  const SOURCE_URL = 'https://github.com/igreisman/submarinedocent';
+  const SOURCE_URL = 'https://github.com/submarinedocent/submarinedocent';
   const WHATS_NEW_URL = '/web/whats-new.html';
 
   function _flashBtn(btn) {

@@ -2,7 +2,7 @@
 
 submarinedocent.org: an independent educational site about the United States submarine force in WWII, with an Ask the Docent tool that answers from a curated corpus. FastAPI backend, static HTML front end, BM25 retrieval over JSONL files. No embeddings, no vector store, no LLM in the default path.
 
-Maintainer: Irving Greisman. Public repo: github.com/igreisman/submarinedocent. Internal planning lives in `docs/internal/`, a separate private repo nested here and ignored by this one.
+Maintainer: Irving Greisman. Public repo: github.com/submarinedocent/submarinedocent. Internal planning lives in `docs/internal/`, a separate private repo nested here and ignored by this one.
 
 ## Start of every session
 
