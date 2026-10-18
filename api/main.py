@@ -5668,6 +5668,85 @@ def _museum_by_slug(slug: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+# Museum page profile: the per-museum fields the museum page template renders
+# above the boat's records (header, fact strip, About, Patrols, Highlights).
+# All plain text, escaped by the page; paragraphs are separated by blank lines.
+# Name, photo, credit and website are the existing fields, not repeated here.
+_MUSEUM_PROFILE_TEXT = {"hull_number": 40, "boat_class": 80, "tagline": 300,
+                        "about": 4000, "museum_text": 4000, "patrols_source": 300}
+_MUSEUM_PATROL_FIELDS = {"dates": 120, "area": 300, "result": 1200}
+_MUSEUM_HIGHLIGHT_KINDS = ("callout", "card")
+
+
+def _clean_museum_profile(body: Dict[str, Any]) -> Dict[str, Any]:
+    """The profile fields present in body, validated, or raise 400.
+
+    Called before anything is mutated, so a bad patrol never leaves a museum
+    half-edited.  An empty string or empty list clears a field.
+    """
+    out: Dict[str, Any] = {}
+
+    def bad(detail: str):
+        raise HTTPException(status_code=400, detail=detail)
+
+    for field, limit in _MUSEUM_PROFILE_TEXT.items():
+        if field in body:
+            value = body[field]
+            if value is not None and not isinstance(value, str):
+                bad(f"{field} must be a string")
+            value = (value or "").strip()
+            if len(value) > limit:
+                bad(f"{field} is longer than {limit} characters")
+            out[field] = value
+    if "patrols_source_url" in body:
+        value = (body["patrols_source_url"] or "").strip()
+        if value and not _SAFE_LINK_SCHEME_RE.match(value):
+            bad("patrols_source_url must start with http:// or https://")
+        out["patrols_source_url"] = value
+    if "patrols" in body:
+        patrols = body["patrols"] or []
+        if not isinstance(patrols, list) or len(patrols) > 30:
+            bad("patrols must be a list of at most 30 entries")
+        cleaned = []
+        for i, p in enumerate(patrols, 1):
+            if not isinstance(p, dict):
+                bad(f"patrol {i} must be an object")
+            entry: Dict[str, Any] = {}
+            for field, limit in _MUSEUM_PATROL_FIELDS.items():
+                value = p.get(field)
+                if value is not None and not isinstance(value, str):
+                    bad(f"patrol {i}: {field} must be a string")
+                value = (value or "").strip()
+                if len(value) > limit:
+                    bad(f"patrol {i}: {field} is longer than {limit} characters")
+                entry[field] = value
+            label = p.get("label")
+            entry["label"] = str(label).strip() if label not in (None, "") else f"Patrol {i}"
+            entry["key"] = bool(p.get("key"))
+            if not (entry["dates"] or entry["area"] or entry["result"]):
+                bad(f"patrol {i} is empty")
+            cleaned.append(entry)
+        out["patrols"] = cleaned
+    if "highlights" in body:
+        items = body["highlights"] or []
+        if not isinstance(items, list) or len(items) > 12:
+            bad("highlights must be a list of at most 12 entries")
+        cleaned = []
+        for i, h in enumerate(items, 1):
+            if not isinstance(h, dict):
+                bad(f"highlight {i} must be an object")
+            kind = str(h.get("kind") or "card").strip()
+            if kind not in _MUSEUM_HIGHLIGHT_KINDS:
+                bad(f"highlight {i}: kind must be one of {', '.join(_MUSEUM_HIGHLIGHT_KINDS)}")
+            title = str(h.get("title") or "").strip()
+            text = str(h.get("text") or "").strip()
+            if not title or len(title) > 200 or len(text) > 1200:
+                bad(f"highlight {i} needs a title of at most 200 characters and text of at most 1200")
+            cleaned.append({"kind": kind, "title": title, "text": text})
+        out["highlights"] = cleaned
+    return out
+
+
 def _next_museum_id(museums: list) -> int:
     existing = [int(m.get("id") or 0) for m in museums]
     return max(existing) + 1 if existing else 1
@@ -5716,7 +5795,9 @@ async def update_museum(museum_id: int, request: Request):
             status_code=400,
             detail="header_image_url requires header_image_credit; a photograph ships with its credit or not at all",
         )
+    profile = _clean_museum_profile(body)
     with _museums_write_lock:
+        target.update(profile)
         # "website" is what the records actually carry; "url" was in this list
         # without it, so editing a museum's website through the admin API was a
         # silent no-op.  tour_url points at that museum's audio tour, so a tour
