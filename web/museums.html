@@ -1638,8 +1638,7 @@
           </div>
         </section>` : '';
 
-      const source = (m.patrols_source || '').trim();
-      const sourceUrl = (m.patrols_source_url || '').trim();
+      const sources = (m.patrols_sources || []).filter(src => (src.label || '').trim());
       const patrolsHtml = patrols.length ? `
         <section class="mp-section" id="patrols">
           <h2>Patrols</h2>
@@ -1650,9 +1649,9 @@
               ${p.result ? `<div class="mp-patrol-result">${esc(p.result)}</div>` : ''}
             </li>`).join('')}
           </ol>
-          ${source ? `<p class="mp-source">Source: ${sourceUrl
-            ? `<a href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(source)}</a>`
-            : esc(source)}</p>` : ''}
+          ${sources.length ? `<p class="mp-source">${sources.length > 1 ? 'Sources' : 'Source'}: ${sources.map(src => src.url
+            ? `<a href="${esc(src.url)}"${/^https?:/i.test(src.url) ? ' target="_blank" rel="noopener noreferrer"' : ''}>${esc(src.label)}</a>`
+            : esc(src.label)).join('; ')}</p>` : ''}
         </section>` : '';
 
       const callouts = highlights.filter(h => h.kind === 'callout');

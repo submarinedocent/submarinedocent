@@ -5673,7 +5673,7 @@ def _museum_by_slug(slug: str) -> Optional[Dict[str, Any]]:
 # All plain text, escaped by the page; paragraphs are separated by blank lines.
 # Name, photo, credit and website are the existing fields, not repeated here.
 _MUSEUM_PROFILE_TEXT = {"hull_number": 40, "boat_class": 80, "tagline": 300,
-                        "about": 4000, "museum_text": 4000, "patrols_source": 300}
+                        "about": 4000, "museum_text": 4000}
 _MUSEUM_PATROL_FIELDS = {"dates": 120, "area": 300, "result": 1200}
 _MUSEUM_HIGHLIGHT_KINDS = ("callout", "card")
 
@@ -5698,11 +5698,24 @@ def _clean_museum_profile(body: Dict[str, Any]) -> Dict[str, Any]:
             if len(value) > limit:
                 bad(f"{field} is longer than {limit} characters")
             out[field] = value
-    if "patrols_source_url" in body:
-        value = (body["patrols_source_url"] or "").strip()
-        if value and not _SAFE_LINK_SCHEME_RE.match(value):
-            bad("patrols_source_url must start with http:// or https://")
-        out["patrols_source_url"] = value
+    if "patrols_sources" in body:
+        # Every source the patrol list draws on, in order: a label and an
+        # optional link (http(s), or a path on this site such as an FAQ search).
+        sources = body["patrols_sources"] or []
+        if not isinstance(sources, list) or len(sources) > 6:
+            bad("patrols_sources must be a list of at most 6 entries")
+        cleaned = []
+        for i, src in enumerate(sources, 1):
+            if not isinstance(src, dict):
+                bad(f"patrols source {i} must be an object")
+            label = str(src.get("label") or "").strip()
+            url = str(src.get("url") or "").strip()
+            if not label or len(label) > 300:
+                bad(f"patrols source {i} needs a label of at most 300 characters")
+            if url and not (_SAFE_LINK_SCHEME_RE.match(url) or (url.startswith("/") and not url.startswith("//"))):
+                bad(f"patrols source {i}: url must start with http://, https://, or /")
+            cleaned.append({"label": label, "url": url})
+        out["patrols_sources"] = cleaned
     if "patrols" in body:
         patrols = body["patrols"] or []
         if not isinstance(patrols, list) or len(patrols) > 30:

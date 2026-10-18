@@ -60,8 +60,8 @@ def main():
         "tagline": "A test boat.",
         "about": "First paragraph.\n\nSecond paragraph.",
         "museum_text": "Open sometimes.",
-        "patrols_source": "A source",
-        "patrols_source_url": "https://example.org/source",
+        "patrols_sources": [{"label": "A source", "url": "https://example.org/source"},
+                            {"label": "A record", "url": "/web/faqs.html?q=test"}],
         "patrols": [{"dates": "1943", "area": "Somewhere", "result": "Something", "key": True},
                     {"label": "Patrol 2", "result": "Nothing"}],
         "highlights": [{"kind": "callout", "title": "Big", "text": "Words."},
@@ -74,6 +74,7 @@ def main():
     check("patrol label defaults to its position", row["patrols"][0]["label"] == "Patrol 1", str(row["patrols"][0]))
     check("patrol key kept as a boolean", row["patrols"][0]["key"] is True and row["patrols"][1]["key"] is False)
     check("highlight kind defaults to card", row["highlights"][1]["kind"] == "card")
+    check("site-relative source link kept", row["patrols_sources"][1]["url"] == "/web/faqs.html?q=test")
     check("existing fields untouched", row.get("name") == museum.get("name") and row.get("slug") == museum.get("slug"))
 
     public = next(x for x in client.get("/api/museums").json() if int(x["id"]) == mid)
@@ -81,7 +82,9 @@ def main():
 
     before = json.dumps(stored(), sort_keys=True)
     bad_cases = [
-        ("javascript source link", {"tagline": "changed", "patrols_source_url": "javascript:alert(1)"}),
+        ("javascript source link", {"tagline": "changed", "patrols_sources": [{"label": "x", "url": "javascript:alert(1)"}]}),
+        ("protocol-relative source link", {"tagline": "changed", "patrols_sources": [{"label": "x", "url": "//evil.example"}]}),
+        ("source without label", {"tagline": "changed", "patrols_sources": [{"url": "https://example.org"}]}),
         ("patrols not a list", {"tagline": "changed", "patrols": "seven"}),
         ("empty patrol", {"tagline": "changed", "patrols": [{"label": "Patrol 1"}]}),
         ("unknown highlight kind", {"tagline": "changed", "highlights": [{"kind": "banner", "title": "x"}]}),
