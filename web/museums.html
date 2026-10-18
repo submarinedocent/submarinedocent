@@ -503,9 +503,9 @@
       width: 100%;
       border: 1px solid #30363d;
       border-radius: 10px;
-      background: #fff;
+      background: #0d1117;
       margin-bottom: 20px;
-      min-height: 300px;
+      min-height: 120px;
     }
 
     /* The photograph sits beside the boat's description, not above it. The
@@ -783,6 +783,304 @@
       line-height: 1.5;
       margin: 0 0 20px;
     }
+
+    /* A search link that points at a phrase ("#:~:text=Gato") makes the
+       browser paint that phrase yellow.  On a dark page it reads as a defect
+       in the copy, so the match is left unmarked. */
+    ::target-text {
+      background: transparent;
+      color: inherit;
+    }
+
+    /* ── Museum page template ─────────────────────────────────────────────
+       Rendered for a museum whose row carries the profile fields (tagline,
+       about, patrols, highlights ...).  A museum without them keeps the
+       layout above.  Every value is plain text from the museum row. */
+    .mp-hero {
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      min-height: 340px;
+      display: flex;
+      align-items: flex-end;
+      background-color: #161c26;
+    }
+
+    /* The photo layer runs 5% past each side, so the white film margins of an
+       archival scan (NH 79761 has about 3.6% on each side) fall outside the
+       frame.  A photo without margins loses at most that much at its edges. */
+    .mp-hero-photo {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -5%;
+      right: -5%;
+      background-size: cover;
+      background-position: center;
+    }
+
+    .mp-hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background: linear-gradient(180deg, rgba(13, 17, 23, 0) 30%, rgba(13, 17, 23, 0.92) 100%);
+    }
+
+    .mp-hero-text {
+      position: relative;
+      z-index: 2;
+      padding: 26px;
+    }
+
+    .mp-hero h1 {
+      margin: 0;
+      font-size: clamp(30px, 6vw, 48px);
+      line-height: 1.1;
+      letter-spacing: -0.5px;
+      color: #f0f6fc;
+    }
+
+    .mp-tagline {
+      margin: 8px 0 0;
+      color: #c9d1d9;
+      font-size: 17px;
+      line-height: 1.5;
+    }
+
+    .mp-credit {
+      font-size: 12px;
+      line-height: 1.5;
+      color: #8b949e;
+      margin: 8px 4px 0;
+    }
+
+    .mp-facts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 22px 0 0;
+    }
+
+    .mp-fact {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 14px;
+      padding: 12px 14px;
+      min-width: 0;
+    }
+
+    .mp-fact .k {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #8b949e;
+    }
+
+    .mp-fact .v {
+      font-size: 18px;
+      font-weight: 600;
+      margin-top: 2px;
+      overflow-wrap: anywhere;
+    }
+
+    .mp-secnav {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: rgba(13, 17, 23, 0.95);
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid #30363d;
+      margin: 22px 0 0;
+      padding: 10px 0;
+      display: flex;
+      gap: 20px;
+      font-size: 15px;
+      overflow-x: auto;
+    }
+
+    .mp-secnav a {
+      color: #8b949e;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .mp-secnav a:hover {
+      color: #e6edf3;
+    }
+
+    .mp-section {
+      padding: 36px 0 4px;
+      scroll-margin-top: 48px;
+    }
+
+    #questions,
+    #tours {
+      scroll-margin-top: 56px;
+    }
+
+    .mp-section h2 {
+      font-size: 26px;
+      margin: 0 0 16px;
+      color: #f0f6fc;
+    }
+
+    .mp-section p {
+      margin: 0 0 14px;
+      line-height: 1.65;
+      color: #c9d1d9;
+    }
+
+    .mp-about {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .mp-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 14px;
+      padding: 20px;
+      min-width: 0;
+    }
+
+    .mp-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #d9a441;
+      margin-bottom: 8px;
+    }
+
+    .mp-visit {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 10px 16px;
+      background: #58a6ff;
+      color: #0d1117;
+      font-weight: 600;
+      border-radius: 10px;
+      text-decoration: none;
+    }
+
+    .mp-visit:hover {
+      filter: brightness(1.1);
+    }
+
+    .mp-timeline {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      border-left: 2px solid #30363d;
+    }
+
+    .mp-timeline li {
+      position: relative;
+      padding: 0 0 20px 22px;
+    }
+
+    .mp-timeline li::before {
+      content: "";
+      position: absolute;
+      left: -7px;
+      top: 7px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #0d1117;
+      border: 2px solid #d9a441;
+    }
+
+    .mp-timeline li.key::before {
+      background: #d9a441;
+    }
+
+    .mp-patrol-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px 12px;
+      align-items: baseline;
+    }
+
+    .mp-patrol-head strong {
+      font-size: 17px;
+      color: #f0f6fc;
+    }
+
+    .mp-patrol-head .when,
+    .mp-patrol-area {
+      color: #8b949e;
+      font-size: 14px;
+    }
+
+    .mp-patrol-result {
+      color: #c9d1d9;
+      font-size: 15px;
+      line-height: 1.6;
+      margin-top: 2px;
+    }
+
+    .mp-source {
+      font-size: 13px;
+      color: #8b949e;
+      margin: 4px 0 0;
+    }
+
+    .mp-source a {
+      color: #58a6ff;
+    }
+
+    .mp-callout {
+      background: linear-gradient(135deg, #1c2330, #161b22);
+      border: 1px solid #30363d;
+      border-left: 4px solid #d9a441;
+      border-radius: 14px;
+      padding: 22px;
+      margin-bottom: 16px;
+    }
+
+    .mp-callout .big {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.25;
+      margin-bottom: 8px;
+      color: #f0f6fc;
+    }
+
+    .mp-callout p:last-child,
+    .mp-card p:last-child {
+      margin-bottom: 0;
+    }
+
+    .mp-cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .mp-below {
+      margin-top: 36px;
+    }
+
+    @media (max-width: 720px) {
+      .mp-facts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .mp-about,
+      .mp-cards {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .mp-hero {
+        min-height: 260px;
+      }
+
+      .mp-hero-text {
+        padding: 18px;
+      }
+    }
   </style>
 </head>
 
@@ -1038,9 +1336,18 @@
       return /^<!doctype\s+html/i.test(t) || /^<html[\s>]/i.test(t) || /<\/(p|div|h[1-6]|body|table|ul|ol)>/i.test(t);
     }
 
+    // Page copy stays in its sandboxed frame, so markup a curator pasted cannot
+    // reach this page, but the frame is dressed in the page's own dark theme:
+    // a white document box in the middle of a dark page read as a different site.
+    const CONTENT_FRAME_STYLE = '<style>html,body{margin:0;background:#0d1117;color:#c9d1d9;'
+      + 'font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;'
+      + 'font-size:15px;line-height:1.7}body{padding:16px 18px}a{color:#58a6ff}'
+      + 'img{max-width:100%;height:auto}h1,h2,h3,h4{color:#f0f6fc}'
+      + '::target-text{background:transparent;color:inherit}</style>';
+
     function renderContent(content) {
       if (isHtml(content)) {
-        return `<iframe class="detail-content-frame" sandbox="allow-same-origin" srcdoc="${esc(content)}" onload="this.style.height=this.contentDocument.documentElement.scrollHeight+'px'"></iframe>`;
+        return `<iframe class="detail-content-frame" sandbox="allow-same-origin" srcdoc="${esc(CONTENT_FRAME_STYLE + content)}" onload="this.style.height=this.contentDocument.documentElement.scrollHeight+'px'"></iframe>`;
       }
       return `<div class="detail-content">${esc(content)}</div>`;
     }
@@ -1294,6 +1601,105 @@
       wireMuseumVideos();
     }
 
+    // ── Museum page template ────────────────────────────────────────────────
+    // One template for every museum.  It renders when the museum row carries
+    // profile fields; the name, photo, credit and website are the row's
+    // existing fields.  Each section is drawn only if its fields are filled,
+    // so a museum can be brought over a section at a time.
+    function hasMuseumProfile(m) {
+      return Boolean((m.tagline || '').trim() || (m.about || '').trim() || (m.museum_text || '').trim()
+        || (m.patrols || []).length || (m.highlights || []).length);
+    }
+
+    function paragraphs(text) {
+      return String(text || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
+        .map(p => `<p>${esc(p)}</p>`).join('');
+    }
+
+    function museumProfileHtml(m, sections) {
+      const url = (m.header_image_url || '').trim();
+      const credit = (m.header_image_credit || '').trim();
+      // The photograph shows only with its credit, as in the old layout.
+      const photo = url && credit;
+      const alt = (m.header_image_alt || '').trim() || m.name;
+      const hull = (m.hull_number || '').trim();
+      const title = hull ? `${m.name} (${hull})` : m.name;
+      const patrols = m.patrols || [];
+      const highlights = m.highlights || [];
+
+      const facts = [
+        ['Class', (m.boat_class || '').trim()],
+        ['Hull number', hull],
+        ['War patrols', patrols.length ? String(patrols.length) : ''],
+        ['Location', (m.location || '').trim()],
+      ].filter(f => f[1]);
+
+      const about = (m.about || '').trim();
+      const museumText = (m.museum_text || '').trim();
+      const website = (m.website || '').trim();
+      const aboutHtml = (about || museumText) ? `
+        <section class="mp-section" id="about">
+          <h2>About</h2>
+          <div class="mp-about">
+            ${about ? `<div class="mp-card"><div class="mp-label">The boat</div>${paragraphs(about)}</div>` : ''}
+            ${museumText || website ? `<div class="mp-card"><div class="mp-label">The museum</div>${paragraphs(museumText)}
+              ${website ? `<a class="mp-visit" href="${esc(website)}" target="_blank" rel="noopener noreferrer">Visit the museum's website</a>` : ''}</div>` : ''}
+          </div>
+        </section>` : '';
+
+      const source = (m.patrols_source || '').trim();
+      const sourceUrl = (m.patrols_source_url || '').trim();
+      const patrolsHtml = patrols.length ? `
+        <section class="mp-section" id="patrols">
+          <h2>Patrols</h2>
+          <ol class="mp-timeline">${patrols.map(p => `
+            <li${p.key ? ' class="key"' : ''}>
+              <div class="mp-patrol-head"><strong>${esc(p.label)}</strong>${p.dates ? `<span class="when">${esc(p.dates)}</span>` : ''}</div>
+              ${p.area ? `<div class="mp-patrol-area">${esc(p.area)}</div>` : ''}
+              ${p.result ? `<div class="mp-patrol-result">${esc(p.result)}</div>` : ''}
+            </li>`).join('')}
+          </ol>
+          ${source ? `<p class="mp-source">Source: ${sourceUrl
+            ? `<a href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(source)}</a>`
+            : esc(source)}</p>` : ''}
+        </section>` : '';
+
+      const callouts = highlights.filter(h => h.kind === 'callout');
+      const cards = highlights.filter(h => h.kind !== 'callout');
+      const highlightsHtml = highlights.length ? `
+        <section class="mp-section" id="highlights">
+          <h2>Highlights</h2>
+          ${callouts.map(h => `<div class="mp-callout"><div class="big">${esc(h.title)}</div>${paragraphs(h.text)}</div>`).join('')}
+          ${cards.length ? `<div class="mp-cards">${cards.map(h => `
+            <div class="mp-card"><div class="mp-label">${esc(h.title)}</div>${paragraphs(h.text)}</div>`).join('')}</div>` : ''}
+        </section>` : '';
+
+      const nav = [
+        aboutHtml && ['about', 'About'],
+        patrolsHtml && ['patrols', 'Patrols'],
+        highlightsHtml && ['highlights', 'Highlights'],
+        sections.questions && ['questions', 'Questions'],
+        sections.tours && ['tours', 'Compartment Tours'],
+      ].filter(Boolean);
+
+      return `
+        <header>
+          <div class="mp-hero">
+            ${photo ? `<div class="mp-hero-photo" role="img" aria-label="${esc(alt)}" style="background-image:url('${esc(url)}')"></div>` : ''}
+            <div class="mp-hero-text">
+              <h1>${esc(title)}</h1>
+              ${m.tagline ? `<p class="mp-tagline">${esc(m.tagline)}</p>` : ''}
+            </div>
+          </div>
+          ${photo ? `<p class="mp-credit">${esc(credit)}</p>` : ''}
+          ${facts.length ? `<div class="mp-facts">${facts.map(f =>
+            `<div class="mp-fact"><div class="k">${esc(f[0])}</div><div class="v">${esc(f[1])}</div></div>`).join('')}</div>` : ''}
+        </header>
+        ${nav.length > 1 ? `<nav class="mp-secnav" aria-label="Page sections">${nav.map(n =>
+          `<a href="#${n[0]}">${esc(n[1])}</a>`).join('')}</nav>` : ''}
+        ${aboutHtml}${patrolsHtml}${highlightsHtml}`;
+    }
+
     async function renderSingleMuseum(museumId) {
       const m = findMuseum(museumId);
       if (!m) { renderMuseumList(); return; }
@@ -1321,6 +1727,32 @@
       } catch (err) {
         // A failed fetch costs the ask box and the list, not the whole page.
         faqs = [];
+      }
+
+      if (hasMuseumProfile(m)) {
+        // The new sections sit above the boat's existing blocks, which are
+        // the same markup as before: ask box and questions, related reading,
+        // the museum's pages (with "About these answers"), the list of
+        // records, and the Compartment Tours videos.
+        const videosHtml = museumVideosHtml(videos);
+        main.innerHTML = `
+          <div class="detail-breadcrumb">
+            <a href="/web/museums.html">All museums</a>
+            <span class="sep">/</span>
+            <span class="current">${esc(m.name)}</span>
+          </div>
+          ${museumProfileHtml(m, { questions: faqs.length > 0, tours: Boolean(videosHtml) })}
+          <div class="museum-card mp-below">
+            <div class="museum-body">
+              <div id="questions">${faqs.length ? museumAskHtml(m.id, faqs) : ''}</div>
+              ${renderMuseumArticles(m.id)}
+              ${pages.length ? renderTopPages(pages, m.id) : ''}
+              ${museumFaqListHtml(faqs)}
+              <div id="tours">${videosHtml}</div>
+            </div>
+          </div>`;
+        wireMuseumView(m.id);
+        return;
       }
 
       main.innerHTML = `
