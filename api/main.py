@@ -374,6 +374,23 @@ async def redirect_legacy_domain(request: Request, call_next):
     return await call_next(request)
 
 
+# A staging copy must not be indexed, or search engines list a second
+# submarinedocent.org.  Any host with "staging" in its name gets the header with
+# no configuration; SITE_NOINDEX=1 forces it on any other host.  A header rather
+# than robots.txt: a Disallow stops crawlers reading the page, so they never see
+# the noindex and can still list a linked URL.  Production is never matched by
+# default, so a change to its hostname cannot de-list it.
+SITE_NOINDEX = os.getenv("SITE_NOINDEX", "").strip().lower() in ("1", "true", "yes")
+
+
+@app.middleware("http")
+async def noindex_staging(request: Request, call_next):
+    response = await call_next(request)
+    if SITE_NOINDEX or "staging" in _request_host(request):
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
+
 @app.middleware("http")
 async def protect_sensitive_routes(request: Request, call_next):
     path = request.url.path

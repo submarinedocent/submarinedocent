@@ -101,6 +101,9 @@ jobs:
       - name: Museum profile fields test
         run: python3 _test/test_museum_profile.py
 
+      - name: Staging noindex test
+        run: python3 _test/test_noindex_staging.py
+
       - name: Upload types test
         run: python3 _test/test_upload_types.py
 
