@@ -104,6 +104,9 @@ jobs:
       - name: Staging noindex test
         run: python3 _test/test_noindex_staging.py
 
+      - name: Upload folder seeding test
+        run: python3 _test/test_seed_upload_dir.py
+
       - name: Upload types test
         run: python3 _test/test_upload_types.py
 

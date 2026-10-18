@@ -619,7 +619,39 @@ def _editable_corpus_dir(dirname: str) -> str:
     files survive redeploys. The caller creates it via os.makedirs.
     """
     base = _RENDER_DATA_DIR if _persistent_disk_available else CORPORA_DIR
-    return os.path.join(base, dirname)
+    path = os.path.join(base, dirname)
+    if _persistent_disk_available:
+        _seed_upload_dir(path, os.path.join(CORPORA_DIR, dirname))
+    return path
+
+
+def _seed_upload_dir(disk_dir: str, bundled_dir: str) -> None:
+    """Fill a missing or empty upload folder on a new disk from the bundled copy.
+
+    The single-file seeding above never covered folders, so a fresh disk (the
+    staging service, 16 Oct 2026) had museum page attachment records whose files
+    were absent, and the Cod header photo returned 404.  Only a missing or empty
+    folder is filled: once a folder holds anything it belongs to the site, and
+    a file deleted there (a photo withdrawn for rights, say) must not come back
+    from the seed on the next restart.  Nothing is ever overwritten.
+    """
+    if not os.path.isdir(bundled_dir):
+        return
+    if os.path.isdir(disk_dir) and any(files for _, _, files in os.walk(disk_dir)):
+        return
+    import shutil
+    copied = 0
+    for root, _, files in os.walk(bundled_dir):
+        for name in files:
+            src = os.path.join(root, name)
+            dest = os.path.join(disk_dir, os.path.relpath(src, bundled_dir))
+            if os.path.exists(dest):
+                continue
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            shutil.copy2(src, dest)
+            copied += 1
+    if copied:
+        print(f"✅ Seeded {copied} file(s) into empty {disk_dir} from bundled corpora")
 
 
 # Videos page.  Editable through the admin screens, so it lives on the persistent
