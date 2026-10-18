@@ -629,7 +629,7 @@ def _seed_upload_dir(disk_dir: str, bundled_dir: str) -> None:
     """Fill a missing or empty upload folder on a new disk from the bundled copy.
 
     The single-file seeding above never covered folders, so a fresh disk (the
-    staging service, 16 Oct 2026) had museum page attachment records whose files
+    staging service, 18 Oct 2026) had museum page attachment records whose files
     were absent, and the Cod header photo returned 404.  Only a missing or empty
     folder is filled: once a folder holds anything it belongs to the site, and
     a file deleted there (a photo withdrawn for rights, say) must not come back
