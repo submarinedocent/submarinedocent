@@ -53,6 +53,28 @@ def load_env(path):
     return env
 
 
+def claim_name(tmp, backup_dir, stamp):
+    """Move the finished download to a name no other backup has, and return it.
+
+    Two backups in the same second (before and after an admin edit) shared a
+    name on 19 October 2026 and the second overwrote the first, losing the
+    "before" copy.  os.link fails instead of replacing an existing file, so a
+    taken name falls through to -2, -3 and so on, even if another run claims a
+    name between the check and the move.
+    """
+    n = 1
+    while True:
+        suffix = "" if n == 1 else f"-{n}"
+        out = os.path.join(backup_dir, f"submarinedocent-{stamp}{suffix}.tar.gz")
+        try:
+            os.link(tmp, out)
+        except FileExistsError:
+            n += 1
+            continue
+        os.remove(tmp)
+        return out
+
+
 def main():
     env = load_env(ENV_PATH)
     site = env["SITE"].rstrip("/")
@@ -61,10 +83,11 @@ def main():
     os.makedirs(backup_dir, exist_ok=True)
 
     # Seconds, not minutes: two backups in one minute (before and after an
-    # admin edit) shared a name on 2 October 2026 and the second overwrote the first.
+    # admin edit) shared a name on 2 October 2026 and the second overwrote the
+    # first.  Seconds were not enough either (19 October): claim_name() below
+    # never overwrites.  The download goes to a name unique to this run first.
     stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    out = os.path.join(backup_dir, f"submarinedocent-{stamp}.tar.gz")
-    tmp = out + ".part"
+    tmp = os.path.join(backup_dir, f".submarinedocent-{stamp}-{os.getpid()}.tar.gz.part")
 
     auth = base64.b64encode(f"{env['ADMIN_USERNAME']}:{env['ADMIN_PASSWORD']}".encode()).decode()
     req = urllib.request.Request(site + "/admin/backup")
@@ -87,7 +110,7 @@ def main():
     except tarfile.TarError as e:
         os.remove(tmp)
         sys.exit(f"Backup failed: downloaded archive is not valid ({e})")
-    os.replace(tmp, out)
+    out = claim_name(tmp, backup_dir, stamp)
     size_kb = os.path.getsize(out) // 1024
     print(f"saved {out}  ({size_kb} KB, {files} files)")
 
