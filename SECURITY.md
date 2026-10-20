@@ -10,7 +10,7 @@ Do not open a public issue for a suspected security problem.
 
 Report it privately, by either route:
 
-1. **Email dieselsubs1945@gmail.com.** This is the project address and it is
+1. **Email irving@submarinedocent.org.** This is the project address and it is
    monitored. Put "security" in the subject.
 2. **GitHub private security advisory** — the "Report a vulnerability" button
    on the Security tab, which opens a thread visible only to the maintainer.

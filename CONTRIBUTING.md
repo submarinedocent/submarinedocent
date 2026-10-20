@@ -162,7 +162,7 @@ corpora, so they are a maintainer's tool rather than a contributor's.
 
 Open an issue with the question you asked, the answer you got, and what it
 should have said. That is genuinely useful: the question is the evidence for
-what needs writing. Or email dieselsubs1945@gmail.com.
+what needs writing. Or email irving@submarinedocent.org.
 
 ## Licensing of contributions
 

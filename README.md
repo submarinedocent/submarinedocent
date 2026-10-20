@@ -80,11 +80,11 @@ looks like, and why drafts are not answerable until they are reviewed.
 
 If you would rather not open a pull request, just tell us the answer was wrong.
 
-- **On the site** — the "no answer found" flow on Ask the Docent sends the
+- **On the site**: the "no answer found" flow on Ask the Docent sends the
   question straight to the maintainer.
-- **On GitHub** — open an issue with the question you asked, the answer you
+- **On GitHub**: open an issue with the question you asked, the answer you
   got, and what it should have said.
-- **By email** — dieselsubs1945@gmail.com.
+- **By email**: irving@submarinedocent.org.
 
 A wrong answer is useful information. It usually means a record is missing, not
 that retrieval is broken, and the question you asked is the evidence for what
