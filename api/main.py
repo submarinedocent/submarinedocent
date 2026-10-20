@@ -3808,7 +3808,10 @@ def _get_category_records() -> list[dict[str, Any]]:
 _FAQ_FIELD_VOCABULARY: Dict[str, set] = {
     "doc_type": {"dieselsubs_faq"},
     "authority_level": {"reference_faq"},
-    "era": {"ww2"},
+    # cold_war (19 Oct 2026): first-hand stories in "Stories and More" from
+    # after 1945, such as a nonqual's Christmas Eve on USS Tusk in 1968.  The
+    # year belongs in the title; the era is a fixed vocabulary, not free text.
+    "era": {"ww2", "cold_war"},
 }
 
 
@@ -5302,7 +5305,7 @@ async def create_faq(request: Request):
             "slug": _make_slug(title),
             "topic_tags": body.get("topic_tags") or [],
             "authority_level": "reference_faq",
-            "era": "ww2",
+            "era": str(body.get("era") or "").strip() or "ww2",
             "platform": ["us_diesel_electric_submarines"],
         }
         # Fields a draft may carry that the standard shape does not assume.
@@ -5343,6 +5346,8 @@ async def update_faq(chunk_id: str, request: Request):
             entry["display_citation"] = _faq_display_citation(entry.get("title", ""))
         if "category" in body:
             entry["category"] = (body.get("category") or "").strip()
+        if "era" in body:
+            entry["era"] = str(body.get("era") or "").strip() or "ww2"
         # Only touched when sent, like category, so an editor that does not know
         # the field cannot clear it.  An empty value removes it.  Writing a boat
         # also retires pampanito_specific, the flag it replaces: two fields
