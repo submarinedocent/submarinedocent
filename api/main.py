@@ -6351,6 +6351,12 @@ def ask(request: Request, payload: dict):
     # answerable record (deleted, or a draft) falls back to an ordinary search.
     faq_id = str(payload.get("faq_id") or "").strip()
     pinned = next((c for c in FAQ if c.get("chunk_id") == faq_id), None) if faq_id else None
+    # The visitor log records how the question arrived: "click" when the page
+    # sent a record id (a balloon, a museum chip, a suggestion after a short
+    # question), "typed" otherwise.  Before 22 October 2026 a balloon click and
+    # the same words typed were indistinguishable in the log.  Keyed on the id
+    # being sent, not on it being valid, so a stale balloon still reads as a click.
+    via = "click" if faq_id else "typed"
     # One or two words: ask for a full question, offering the records those
     # words best match.  Each suggestion names its record, like a balloon.
     if pinned is None and SHORT_QUERY_PROMPT and _is_short_query(question):
@@ -6362,7 +6368,7 @@ def ask(request: Request, payload: dict):
             if cid.startswith(("faq_", "fix_")) and ch.get("title") and len(suggestions) < 3:
                 suggestions.append({"q": ch["title"], "faq": cid})
         if request.headers.get("x-subdocent-test") != "1":
-            _append_ask_log(question, "short_query", museum_id)
+            _append_ask_log(question, "short_query", museum_id, {"via": via})
         return {
             "answer_mode": payload.get("answer_mode", "standard") or "standard",
             "answer_short": SHORT_QUERY_ANSWER if suggestions else SHORT_QUERY_ANSWER_ALONE,
@@ -6428,14 +6434,14 @@ def ask(request: Request, payload: dict):
         # Until 6 October 2026 any answer without an faq_id was logged as a
         # refusal, so answers quoted from the manual read as refusals.
         if diag:
-            _append_ask_log(question, "fallback", museum_id, diag)
+            _append_ask_log(question, "fallback", museum_id, {**diag, "via": via})
         elif (result.get("refusal") or {}).get("is_refusal"):
-            _append_ask_log(question, "refusal", museum_id)
+            _append_ask_log(question, "refusal", museum_id, {"via": via})
         elif result.get("faq_id"):
-            _append_ask_log(question, result.get("faq_id"), museum_id)
+            _append_ask_log(question, result.get("faq_id"), museum_id, {"via": via})
         else:
             cite = (result.get("citations") or [{}])[0]
-            _append_ask_log(question, None, museum_id, {"source_id": cite.get("chunk_id")})
+            _append_ask_log(question, None, museum_id, {"source_id": cite.get("chunk_id"), "via": via})
     return result
 
 

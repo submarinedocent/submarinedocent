@@ -178,11 +178,12 @@ def main() -> int:
         check("premise: 'What is msw' is refused", refused == "refusal", f"got {refused}")
         check("refusal logged as refusal", ref.get("faq_id") == "refusal", str(ref))
         check("fallback logged as fallback", fb.get("faq_id") == "fallback", str(fb))
+        # "via" (click or typed) joined every line on 22 October 2026.
         check("fallback line keys", set(fb) == {"q", "faq_id", "museum_id", "date",
-                                                "top_id", "top_score", "unexplained"}, str(sorted(fb)))
+                                                "top_id", "top_score", "unexplained", "via"}, str(sorted(fb)))
         check("date only, no time", len(fb.get("date", "")) == 10, fb.get("date", ""))
         check("unexplained at or over the floor", (fb.get("unexplained") or 0) >= m.MAX_UNEXPLAINED_IDF, str(fb))
-        check("answered line unchanged", set(ok) == {"q", "faq_id", "museum_id", "date"}, str(sorted(ok)))
+        check("answered line unchanged", set(ok) == {"q", "faq_id", "museum_id", "date", "via"}, str(sorted(ok)))
 
     print(f"  {len(MUST_FALL_BACK)} fall back, {len(CHATTY)} chatty, {len(UNPUNCTUATED)} unpunctuated, "
           f"{len(BOAT_IN_PREAMBLE)} boat carries, "
