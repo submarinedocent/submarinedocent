@@ -1,6 +1,259 @@
 {
   "entries": [
     {
+      "week_ending": "2026-10-23",
+      "from": "2026-10-16",
+      "to": "2026-10-23",
+      "generated": "2026-10-23T02:10:49-07:00",
+      "commits_total": 27,
+      "commits_listed": 17,
+      "commits": [
+        {
+          "sha": "97e1b45",
+          "summary": "Project address is irving@submarinedocent.org",
+          "date": "2026-10-20T05:17:31-07:00",
+          "area": "",
+          "files": 4,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "15ccd2a",
+          "summary": "Refresh seed: phrasing \"What was it like to be a nonqual?\" on faq_1184",
+          "date": "2026-10-20T02:56:03-07:00",
+          "area": "Answers",
+          "files": 1,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "ef8a042",
+          "summary": "Refresh seed: faq_1386 Christmas Eve on Tusk, 1968 accepted; faq_1184 closing line",
+          "date": "2026-10-19T20:30:05-07:00",
+          "area": "Answers",
+          "files": 2,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "a45974e",
+          "summary": "corpora/README: category row names where the thirteenth category came from",
+          "date": "2026-10-19T20:10:27-07:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "1227da2",
+          "summary": "Refresh seed: Stories and More category; faq_1184 paragraph 1",
+          "date": "2026-10-19T20:08:44-07:00",
+          "area": "Answers",
+          "files": 3,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "e4abc74",
+          "summary": "FAQ era vocabulary gains cold_war; USS Tusk (SS-426) joins the boats table",
+          "date": "2026-10-19T19:31:50-07:00",
+          "area": "Reference material",
+          "files": 4,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "15bb4da",
+          "summary": "Refresh seed: phrasing \"What other missions did submarines have?\" on faq_1084",
+          "date": "2026-10-19T07:44:38-07:00",
+          "area": "Answers",
+          "files": 1,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "e51aac9",
+          "summary": "Ask the Docent: three general balloons replace the Pampanito ones",
+          "date": "2026-10-19T07:37:53-07:00",
+          "area": "Ask the Docent",
+          "files": 1,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "7ffbcb8",
+          "summary": "Refresh seed: Cod Section B cite-or-cut (11 records)",
+          "date": "2026-10-19T07:28:09-07:00",
+          "area": "Answers",
+          "files": 1,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "7631e5f",
+          "summary": "Backups never overwrite: a same-second name gets -2, -3, ...",
+          "date": "2026-10-19T07:27:29-07:00",
+          "area": "",
+          "files": 3,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "5fa8048",
+          "summary": "Ask the Docent: depth balloon asks about Balao-class boats, not Pampanito",
+          "date": "2026-10-19T07:18:35-07:00",
+          "area": "Ask the Docent",
+          "files": 1,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "8a13328",
+          "summary": "Refresh seed: faq_1344 generalized to Balao depth; faq_1186 creak phrasing",
+          "date": "2026-10-19T07:13:40-07:00",
+          "area": "Answers",
+          "files": 1,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "3045771",
+          "summary": "Refresh seed: phrasing \"What ships did Cod sink?\" on faq_1367",
+          "date": "2026-10-18T18:28:13-07:00",
+          "area": "Answers",
+          "files": 1,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "ab0ed41",
+          "summary": "Refresh seed: Cod Section A corrections (10 records)",
+          "date": "2026-10-18T18:24:14-07:00",
+          "area": "Answers",
+          "files": 1,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "586a4bf",
+          "summary": "Refresh seed: Cod's museum profile, as loaded on production",
+          "date": "2026-10-18T16:39:58-07:00",
+          "area": "Museum pages",
+          "files": 1,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "3a4f9d5",
+          "summary": "Comment date: the staging upload 404 was found on 18 Oct, not 16 Oct",
+          "date": "2026-10-18T14:43:48-07:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "4c52a1c",
+          "summary": "A new disk's empty upload folders are filled from the bundled corpora",
+          "date": "2026-10-18T14:41:22-07:00",
+          "area": "",
+          "files": 3,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "9220415",
+          "summary": "Staging hosts send X-Robots-Tag: noindex, nofollow",
+          "date": "2026-10-18T14:36:40-07:00",
+          "area": "",
+          "files": 3,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "21443e8",
+          "summary": "Refresh seed: Cod corrections batch (faq_1366, 1369, 1382, 1384, Cod page 1)",
+          "date": "2026-10-18T13:38:03-07:00",
+          "area": "Answers",
+          "files": 2,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "46b3429",
+          "summary": "Museum profile: patrols_sources replaces patrols_source and its URL",
+          "date": "2026-10-18T11:21:47-07:00",
+          "area": "Museum pages",
+          "files": 3,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "4a77fd6",
+          "summary": "Museum pages: leave browser text-fragment highlights alone",
+          "date": "2026-10-18T11:21:47-07:00",
+          "area": "Museum pages",
+          "files": 1,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "ff460c9",
+          "summary": "Museum page template: dark header photo, facts, About, Patrols, Highlights",
+          "date": "2026-10-18T10:24:35-07:00",
+          "area": "Museum pages",
+          "files": 1,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "1797316",
+          "summary": "Museum profile fields for the museum page template",
+          "date": "2026-10-18T10:24:35-07:00",
+          "area": "",
+          "files": 3,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "78a42f4",
+          "summary": "Source links point to the submarinedocent GitHub org",
+          "date": "2026-10-16T20:17:01-07:00",
+          "area": "Pages and layout",
+          "files": 6,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "2df3342",
+          "summary": "CLAUDE.md: the 1946 manual answers visitors as the supplementary fallback",
+          "date": "2026-10-11T08:16:39-07:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "be19a59",
+          "summary": "CLAUDE.md: read and update docs/internal/STATUS.md every session",
+          "date": "2026-10-10T04:55:14-07:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "c2f2a73",
+          "summary": "What's New: week ending 2026-10-16",
+          "date": "2026-10-16T09:10:52Z",
+          "area": "Pages and layout",
+          "files": 2,
+          "public": false,
+          "reason": "an editing screen, not a visitor page"
+        }
+      ]
+    },
+    {
       "week_ending": "2026-10-16",
       "from": "2026-10-09",
       "to": "2026-10-16",
