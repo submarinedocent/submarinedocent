@@ -116,6 +116,9 @@ jobs:
       - name: Ask log via test
         run: python3 _test/test_ask_log_via.py
 
+      - name: Eternal Patrol prior history test
+        run: python3 _test/test_eternal_patrol_prior_history.py
+
       - name: Upload types test
         run: python3 _test/test_upload_types.py
 
