@@ -59,7 +59,7 @@ ANSWERABLE_PREFIXES = ("faq_", "fix_")
 DEFAULT_BASE_URL = "https://submarinedocent.org"
 
 # Files that live on /data but must never enter corpora/.
-NEVER_SEED = frozenset({"ask_log.jsonl"})
+NEVER_SEED = frozenset({"ask_log.jsonl", "feedback.jsonl"})
 
 
 def env(name, default=None):

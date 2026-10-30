@@ -4970,7 +4970,8 @@ def admin_backup(include_cache: bool = False):
                 arc = os.path.join("data", "" if rel_root == "." else rel_root, name)
                 tar.add(full, arcname=arc)
                 count += 1
-        if os.path.exists(FEEDBACK_PATH):
+        # On the disk the walk above already took it.
+        if os.path.exists(FEEDBACK_PATH) and not os.path.abspath(FEEDBACK_PATH).startswith(os.path.abspath(base) + os.sep):
             tar.add(FEEDBACK_PATH, arcname="feedback.jsonl")
             count += 1
         manifest = json.dumps({
@@ -6301,7 +6302,15 @@ def delete_museum_page_attachment(page_id: int, attachment_id: int):
 # Feedback endpoint
 # ------------------------------------------------------------
 
-FEEDBACK_PATH = os.path.join(BASE_DIR, "feedback.jsonl")
+# Visitor ratings and contact-form messages.  On the persistent disk, like the
+# question log (30 October 2026): in the app directory every deploy erased it,
+# and feedback present in the 2 to 5 October backups was gone by the next.
+# No seed: this is private visitor data and has no copy in corpora/.
+FEEDBACK_PATH = (
+    os.path.join(_RENDER_DATA_DIR, "feedback.jsonl")
+    if _persistent_disk_available
+    else os.path.join(BASE_DIR, "feedback.jsonl")
+)
 
 @app.post("/feedback")
 def receive_feedback(payload: dict):

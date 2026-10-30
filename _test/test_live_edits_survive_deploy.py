@@ -2,7 +2,8 @@
 """A deploy never overwrites content edited on the live site.
 
 Lost boats, their uploaded photos and the Medal of Honor list are edited on the
-live site, so they live on the persistent disk (30 October 2026).  Until then
+live site, and visitor feedback is written there, so all four live on the
+persistent disk (30 October 2026).  Until then
 they were read from the bundled corpora/ and web/ copies, which every deploy
 replaces.  This test plays two deploys against a temporary disk: edits and an
 upload made after the first must still be served after the second, a photo in
@@ -47,6 +48,7 @@ if sys.argv[2] == "edit":
     out["put_moh"] = c.put("/admin/moh-recipients/1", json={"citation_summary": "Edited live."}, headers=auth).status_code
     out["upload"] = c.post(f"/admin/eternal-patrol/{boat['id']}/upload-image", data={"field_name": "photo_boat"},
                            files={"image": ("new.jpg", b"uploaded-on-live-site", "image/jpeg")}, headers=auth).status_code
+    out["feedback_post"] = c.post("/feedback", json={"source": "contact", "message": "Sent live.", "email": "v@example.org"}).status_code
 boat = next(b for b in c.get("/api/eternal-patrol").json() if b["boat_number"] == "SS-8")
 out["prior_history"] = boat.get("prior_history")
 out["photo_boat"] = boat.get("photo_boat")
@@ -56,6 +58,14 @@ out["photo_status"], out["photo_bytes"] = r.status_code, r.content.decode("latin
 other = next(b for b in c.get("/api/eternal-patrol").json() if b["boat_number"] == "SS-238")
 r = c.get("/web/" + other["photo_boat"])
 out["bundled_status"], out["bundled_len"] = r.status_code, len(r.content)
+r = c.get("/feedback/list", headers=auth)
+fb = r.json() if r.status_code == 200 else None
+fb = fb if isinstance(fb, list) else (fb or {}).get("entries", [])
+out["feedback"] = [e.get("message") for e in fb]
+import io, tarfile
+r = c.get("/admin/backup", headers=auth)
+names = tarfile.open(fileobj=io.BytesIO(r.content), mode="r:gz").getnames() if r.status_code == 200 else []
+out["backup_feedback"] = [n for n in names if n.endswith("feedback.jsonl")]
 print("RESULT " + json.dumps(out))
 '''
 
@@ -93,6 +103,7 @@ def main():
                os.path.join(REPO, "corpora", "moh_recipients.jsonl"),
                os.path.join(REPO, "web", "images", "extracted")]
     before = digest(*tracked)
+    feedback_before = os.path.exists(os.path.join(REPO, "feedback.jsonl"))
     disk = tempfile.mkdtemp(prefix="livedeploy-")
 
     first = deploy(disk, "edit")
@@ -100,7 +111,9 @@ def main():
     if "put_boat" not in first:
         check("lost boats read from the disk", False, "they read the bundled copy, which a deploy replaces")
         sys.exit("stopped before writing anything")
-    check("edits and upload accepted", (first["put_boat"], first["put_moh"], first["upload"]) == (200, 200, 200), str(first))
+    check("edits, upload and feedback accepted",
+          (first["put_boat"], first["put_moh"], first["upload"], first["feedback_post"]) == (200, 200, 200, 200), str(first))
+    check("feedback written to the disk", os.path.exists(os.path.join(disk, "feedback.jsonl")))
     check("lost-boat file seeded onto the disk", os.path.exists(os.path.join(disk, "eternal_patrol.jsonl")))
     check("Medal of Honor file seeded onto the disk", os.path.exists(os.path.join(disk, "moh_recipients.jsonl")))
     check("upload written to the disk", os.path.isdir(os.path.join(disk, "eternal_patrol_images"))
@@ -114,7 +127,10 @@ def main():
           f"{second['photo_status']} {second['photo_boat']}")
     check("photo in git still served from the bundle", second["bundled_status"] == 200 and second["bundled_len"] > 1000,
           f"{second['bundled_status']} {second['bundled_len']}")
+    check("feedback survives a deploy", second["feedback"] == ["Sent live."], str(second["feedback"]))
+    check("backup holds feedback once", second["backup_feedback"] == ["data/feedback.jsonl"], str(second["backup_feedback"]))
     check("repository files untouched", digest(*tracked) == before)
+    check("no feedback file in the app directory", not os.path.exists(os.path.join(REPO, "feedback.jsonl")) or feedback_before)
 
     import shutil
     shutil.rmtree(disk, ignore_errors=True)
