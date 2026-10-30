@@ -1,6 +1,25 @@
 {
   "entries": [
     {
+      "week_ending": "2026-10-30",
+      "from": "2026-10-23",
+      "to": "2026-10-30",
+      "generated": "2026-10-30T08:31:17-07:00",
+      "commits_total": 1,
+      "commits_listed": 0,
+      "commits": [
+        {
+          "sha": "ec6386d",
+          "summary": "What's New: week ending 2026-10-23",
+          "date": "2026-10-23T09:10:49Z",
+          "area": "Pages and layout",
+          "files": 2,
+          "public": false,
+          "reason": "an editing screen, not a visitor page"
+        }
+      ]
+    },
+    {
       "week_ending": "2026-10-23",
       "from": "2026-10-16",
       "to": "2026-10-23",
