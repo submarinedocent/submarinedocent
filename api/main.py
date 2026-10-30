@@ -1085,6 +1085,44 @@ print(f"Loaded: {len(FAQ)} faq, {len(SHORTS)} shorts chunks, {len(CATEGORIES)} c
 
 
 
+# A historian message that was not emailed is kept here in full, on the disk, so
+# a failed send loses nothing (Irving, 30 October 2026).  Before this the only
+# copy was Render's log output.  Any audio goes in the folder beside it.
+# Private visitor data: never copied into corpora/.
+CONTACT_FAILURES_PATH = (
+    os.path.join(_RENDER_DATA_DIR, "contact_failures.jsonl")
+    if _persistent_disk_available
+    else os.path.join(BASE_DIR, "contact_failures.jsonl")
+)
+CONTACT_FAILURES_AUDIO_DIR = os.path.splitext(CONTACT_FAILURES_PATH)[0] + "_audio"
+
+
+def _keep_unsent_contact(reason: str, lang: str, question: str, visitor_response: str,
+                         body: str, audio_bytes: bytes, audio_ct: str) -> None:
+    import datetime
+    import uuid
+    entry = {
+        "ts": datetime.datetime.utcnow().isoformat() + "Z",
+        "reason": reason,
+        "lang": lang,
+        "question": question,
+        "visitor_response": visitor_response,
+        "body": body,
+        "audio_file": None,
+    }
+    try:
+        if audio_bytes:
+            os.makedirs(CONTACT_FAILURES_AUDIO_DIR, exist_ok=True)
+            name = f"{entry['ts'][:19].replace(':', '')}-{uuid.uuid4().hex[:8]}.{'mp4' if 'mp4' in audio_ct else 'webm'}"
+            with open(os.path.join(CONTACT_FAILURES_AUDIO_DIR, name), "wb") as f:
+                f.write(audio_bytes)
+            entry["audio_file"] = name
+        with open(CONTACT_FAILURES_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception as e:
+        print(f"[CONTACT] could not keep unsent message: {e}")
+
+
 @app.post("/contact")
 async def contact(
     question_text: str = Form(""),
@@ -1108,11 +1146,20 @@ async def contact(
     )
     print(f"[CONTACT] {body}")
 
+    # Read once, before any send, so an unsent message keeps its recording.
+    audio_bytes = (await audio.read()) if audio else b""
+    audio_ct = (audio.content_type or "audio/webm") if audio else ""
+
+    def keep(reason: str) -> None:
+        _keep_unsent_contact(reason, lang, question, visitor_response, body, audio_bytes, audio_ct)
+
     if not SMTP_USER or not SMTP_PASS:
+        keep("SMTP_USER or SMTP_PASS not set")
         return {"status": "logged", "note": "Set SMTP_USER and SMTP_PASS env vars to enable email."}
     if not HISTORIAN_EMAIL:
         # Degrade the same way missing SMTP credentials do, rather than handing
         # the server an empty To: header.
+        keep("HISTORIAN_EMAIL not set")
         return {"status": "logged", "note": "Set HISTORIAN_EMAIL to enable delivery."}
 
     try:
@@ -1123,16 +1170,13 @@ async def contact(
         msg.attach(MIMEText(body, "plain"))
 
         # Attach audio recording if provided
-        if audio:
-            audio_bytes = await audio.read()
-            if audio_bytes:
-                ct = (audio.content_type or "audio/webm")
-                ext = "mp4" if "mp4" in ct else "webm"
-                part = MIMEBase("audio", ext)
-                part.set_payload(audio_bytes)
-                encoders.encode_base64(part)
-                part.add_header("Content-Disposition", "attachment", filename=f"question.{ext}")
-                msg.attach(part)
+        if audio_bytes:
+            ext = "mp4" if "mp4" in audio_ct else "webm"
+            part = MIMEBase("audio", ext)
+            part.set_payload(audio_bytes)
+            encoders.encode_base64(part)
+            part.add_header("Content-Disposition", "attachment", filename=f"question.{ext}")
+            msg.attach(part)
 
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.ehlo()
@@ -1143,6 +1187,7 @@ async def contact(
         return {"status": "sent"}
     except Exception as e:
         print(f"[CONTACT] Email send failed: {e}")
+        keep(f"send failed: {type(e).__name__}: {e}")
         return {"status": "error", "detail": str(e)}
 
 

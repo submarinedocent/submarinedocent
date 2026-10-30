@@ -122,6 +122,11 @@ jobs:
       - name: Live edits survive a deploy
         run: python3 _test/test_live_edits_survive_deploy.py
 
+      - name: Unsent historian messages are kept
+        run: python3 _test/test_contact_failures_kept.py
+        env:
+          CONTENT_ROOT: corpora
+
       - name: Upload types test
         run: python3 _test/test_upload_types.py
 

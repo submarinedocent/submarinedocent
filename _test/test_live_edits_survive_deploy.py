@@ -66,6 +66,7 @@ import io, tarfile
 r = c.get("/admin/backup", headers=auth)
 names = tarfile.open(fileobj=io.BytesIO(r.content), mode="r:gz").getnames() if r.status_code == 200 else []
 out["backup_feedback"] = [n for n in names if n.endswith("feedback.jsonl")]
+out["contact_failures_on_disk"] = m.CONTACT_FAILURES_PATH.startswith(m._RENDER_DATA_DIR + "/")
 print("RESULT " + json.dumps(out))
 '''
 
@@ -128,6 +129,7 @@ def main():
     check("photo in git still served from the bundle", second["bundled_status"] == 200 and second["bundled_len"] > 1000,
           f"{second['bundled_status']} {second['bundled_len']}")
     check("feedback survives a deploy", second["feedback"] == ["Sent live."], str(second["feedback"]))
+    check("unsent historian messages are kept on the disk", second["contact_failures_on_disk"] is True)
     check("backup holds feedback once", second["backup_feedback"] == ["data/feedback.jsonl"], str(second["backup_feedback"]))
     check("repository files untouched", digest(*tracked) == before)
     check("no feedback file in the app directory", not os.path.exists(os.path.join(REPO, "feedback.jsonl")) or feedback_before)

@@ -79,6 +79,8 @@ web/videos/
 /dieselsubs_faq_corpus.jsonl
 /ask_log.jsonl
 /feedback.jsonl
+/contact_failures.jsonl
+/contact_failures_audio/
 /videos.jsonl
 /museums.jsonl
 /incidents.jsonl
