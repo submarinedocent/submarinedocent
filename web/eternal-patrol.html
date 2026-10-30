@@ -408,16 +408,16 @@
                 <div style="font-weight:600;margin-bottom:6px;">Construction</div>
                 <div style="color:#333;font-size:1em;">${boat.construction ? boat.construction.replace(/\n/g, '<br>') : 'No construction data available.'}</div>
               </div>
+              <div style="margin-bottom:18px;">
+                <div style="font-weight:600;margin-bottom:6px;">Loss Narrative</div>
+                <div style="color:#333;font-size:1em;">${boat.loss_narrative.replace(/\n/g, '<br>')}</div>
+              </div>
               ${boat.prior_history ? `
               <div style="margin-bottom:18px;">
                 <div style="font-weight:600;margin-bottom:6px;">Prior History</div>
                 <div style="color:#333;font-size:1em;">${boat.prior_history.replace(/\n/g, '<br>')}</div>
               </div>
               ` : ''}
-              <div style="margin-bottom:18px;">
-                <div style="font-weight:600;margin-bottom:6px;">Loss Narrative</div>
-                <div style="color:#333;font-size:1em;">${boat.loss_narrative.replace(/\n/g, '<br>')}</div>
-              </div>
               ${galleryHtml ? `
               <div style="margin-bottom:18px;">
                 <div style="font-weight:600;margin-bottom:10px;">Gallery</div>

@@ -2,8 +2,8 @@
 """A lost boat carries an optional Prior History (29 October 2026).
 
 The editor saves it, the public list returns it, and a new boat starts with it
-empty.  The pages show the section between Construction and Loss Narrative only
-when it has text.
+empty.  The pages show the section after Loss Narrative (Irving,
+30 October 2026), only when it has text.
 
     python3 _test/test_eternal_patrol_prior_history.py
 
@@ -63,8 +63,8 @@ def main():
     for page in ("web/faqs.html", "web/eternal-patrol.html"):
         with open(os.path.join(REPO, page), encoding="utf-8") as f:
             s = f.read()
-        c, p, l = (s.find(">Construction<"), s.find(">Prior History<"), s.find(">Loss Narrative<"))
-        check(f"{page}: Prior History sits between Construction and Loss Narrative", -1 < c < p < l, f"{c} {p} {l}")
+        c, l, p = (s.find(">Construction<"), s.find(">Loss Narrative<"), s.find(">Prior History<"))
+        check(f"{page}: Prior History follows Loss Narrative", -1 < c < l < p, f"{c} {l} {p}")
 
     with open(os.path.join(REPO, "web/edit_lost_boats.html"), encoding="utf-8") as f:
         s = f.read()
