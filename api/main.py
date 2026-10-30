@@ -79,7 +79,8 @@ _load_local_env_defaults()
 # published to the repository live under <disk>/web for the same reason — a
 # redeploy rebuilds the container from git, so anything absent from git and not
 # on the disk is gone.
-_RENDER_DATA_DIR = "/data"
+# SUBDOCENT_DATA_DIR exists for the redeploy test; production never sets it.
+_RENDER_DATA_DIR = os.getenv("SUBDOCENT_DATA_DIR", "/data")
 _UNPUBLISHED_WEB_DIR = os.path.join(_RENDER_DATA_DIR, "web")
 
 
@@ -4164,8 +4165,45 @@ def delete_admin_incident(incident_id: int):
 
 # ── Eternal Patrol ────────────────────────────────────────────────────────────
 
-_ETERNAL_PATROL_PATH = os.path.join(CORPORA_DIR, "eternal_patrol.jsonl")
+# Lost boats are edited on the live site, so they live on the persistent disk
+# like the FAQs: the bundled corpora/eternal_patrol.jsonl seeds /data once and a
+# deploy never overwrites it.  Until 30 October 2026 this read the bundled copy,
+# so every deploy would have erased edits made on the live site.  The usual
+# consequence follows: editing the committed file no longer changes production.
+_ETERNAL_PATROL_PATH = _editable_corpus_path("eternal_patrol.jsonl")
 _eternal_patrol_cache: list | None = None
+
+# Uploaded photos go to the disk as well.  Records keep their images/extracted/
+# paths; that URL looks on the disk first and then in the bundled
+# web/images/extracted, so the photos in git need no copying and a photo
+# replaced on the live site under the same name is the one served.
+_ETERNAL_PATROL_UPLOAD_DIR = (
+    os.path.join(_RENDER_DATA_DIR, "eternal_patrol_images")
+    if _persistent_disk_available else ETERNAL_PATROL_IMAGE_DIR
+)
+
+
+def _lost_boat_image_files(upload_dir: str, bundled_dir: str) -> StaticFiles:
+    files = StaticFiles(directory=upload_dir)
+    # Starlette (pinned) serves the first directory in this list holding the file.
+    files.all_directories = [upload_dir, bundled_dir]
+    return files
+
+
+if _persistent_disk_available and os.path.isdir(ETERNAL_PATROL_IMAGE_DIR):
+    from starlette.routing import Mount
+
+    os.makedirs(_ETERNAL_PATROL_UPLOAD_DIR, exist_ok=True)
+    # Ahead of the /web mount, which would otherwise answer these URLs first.
+    _web_mount_index = next(
+        (i for i, r in enumerate(app.router.routes) if getattr(r, "name", None) == "web"),
+        len(app.router.routes),
+    )
+    app.router.routes.insert(_web_mount_index, Mount(
+        "/web/images/extracted",
+        app=_lost_boat_image_files(_ETERNAL_PATROL_UPLOAD_DIR, ETERNAL_PATROL_IMAGE_DIR),
+        name="lost_boat_images",
+    ))
 
 
 def _boat_number_sort_key(value: str) -> tuple[int, str]:
@@ -4417,9 +4455,9 @@ async def upload_admin_eternal_patrol_image(
         raise HTTPException(status_code=404, detail="Boat not found")
 
     extension = _safe_image_extension(image.filename, image.content_type)
-    os.makedirs(ETERNAL_PATROL_IMAGE_DIR, exist_ok=True)
+    os.makedirs(_ETERNAL_PATROL_UPLOAD_DIR, exist_ok=True)
     filename = _build_eternal_patrol_image_name(target, field_name, extension)
-    destination = os.path.join(ETERNAL_PATROL_IMAGE_DIR, filename)
+    destination = os.path.join(_ETERNAL_PATROL_UPLOAD_DIR, filename)
 
     try:
         with open(destination, "wb") as output_file:
@@ -5556,7 +5594,9 @@ async def import_sql(sql_file: UploadFile = File(...)):
 # Medal of Honor recipients
 # ------------------------------------------------------------
 
-_MOH_PATH = os.path.join(CORPORA_DIR, "moh_recipients.jsonl")
+# Edited on the live site, so on the persistent disk (30 October 2026): see
+# _ETERNAL_PATROL_PATH.
+_MOH_PATH = _editable_corpus_path("moh_recipients.jsonl")
 _moh_cache: list | None = None
 _moh_write_lock = threading.Lock()
 

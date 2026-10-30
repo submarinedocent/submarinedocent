@@ -119,6 +119,9 @@ jobs:
       - name: Eternal Patrol prior history test
         run: python3 _test/test_eternal_patrol_prior_history.py
 
+      - name: Live edits survive a deploy
+        run: python3 _test/test_live_edits_survive_deploy.py
+
       - name: Upload types test
         run: python3 _test/test_upload_types.py
 
