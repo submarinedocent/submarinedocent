@@ -1,6 +1,131 @@
 {
   "entries": [
     {
+      "week_ending": "2026-10-23",
+      "from": "2026-10-16",
+      "to": "2026-10-23",
+      "generated": "2026-10-23T02:10:49-07:00",
+      "commits_total": 27,
+      "commits_listed": 17,
+      "totals": [
+        {
+          "label": "Answers",
+          "was": 376,
+          "now": 377
+        },
+        {
+          "label": "Videos",
+          "was": 108,
+          "now": 108
+        },
+        {
+          "label": "Museums listed",
+          "was": 20,
+          "now": 20
+        },
+        {
+          "label": "Museum pages",
+          "was": 2,
+          "now": 2
+        }
+      ],
+      "groups": [
+        {
+          "area": "Answers",
+          "changes": [
+            {
+              "sha": "15ccd2a",
+              "summary": "Refresh seed: phrasing \"What was it like to be a nonqual?\" on faq_1184"
+            },
+            {
+              "sha": "ef8a042",
+              "summary": "Refresh seed: faq_1386 Christmas Eve on Tusk, 1968 accepted; faq_1184 closing line"
+            },
+            {
+              "sha": "1227da2",
+              "summary": "Refresh seed: Stories and More category; faq_1184 paragraph 1"
+            },
+            {
+              "sha": "15bb4da",
+              "summary": "Refresh seed: phrasing \"What other missions did submarines have?\" on faq_1084"
+            },
+            {
+              "sha": "7ffbcb8",
+              "summary": "Refresh seed: Cod Section B cite-or-cut (11 records)"
+            },
+            {
+              "sha": "8a13328",
+              "summary": "Refresh seed: faq_1344 generalized to Balao depth; faq_1186 creak phrasing"
+            },
+            {
+              "sha": "3045771",
+              "summary": "Refresh seed: phrasing \"What ships did Cod sink?\" on faq_1367"
+            },
+            {
+              "sha": "ab0ed41",
+              "summary": "Refresh seed: Cod Section A corrections (10 records)"
+            },
+            {
+              "sha": "21443e8",
+              "summary": "Refresh seed: Cod corrections batch (faq_1366, 1369, 1382, 1384, Cod page 1)"
+            }
+          ]
+        },
+        {
+          "area": "Ask the Docent",
+          "changes": [
+            {
+              "sha": "e51aac9",
+              "summary": "Ask the Docent: three general balloons replace the Pampanito ones"
+            },
+            {
+              "sha": "5fa8048",
+              "summary": "Ask the Docent: depth balloon asks about Balao-class boats, not Pampanito"
+            }
+          ]
+        },
+        {
+          "area": "Museum pages",
+          "changes": [
+            {
+              "sha": "586a4bf",
+              "summary": "Refresh seed: Cod's museum profile, as loaded on production"
+            },
+            {
+              "sha": "46b3429",
+              "summary": "Museum profile: patrols_sources replaces patrols_source and its URL"
+            },
+            {
+              "sha": "4a77fd6",
+              "summary": "Museum pages: leave browser text-fragment highlights alone"
+            },
+            {
+              "sha": "ff460c9",
+              "summary": "Museum page template: dark header photo, facts, About, Patrols, Highlights"
+            }
+          ]
+        },
+        {
+          "area": "Reference material",
+          "changes": [
+            {
+              "sha": "e4abc74",
+              "summary": "FAQ era vocabulary gains cold_war; USS Tusk (SS-426) joins the boats table"
+            }
+          ]
+        },
+        {
+          "area": "Pages and layout",
+          "changes": [
+            {
+              "sha": "78a42f4",
+              "summary": "Source links point to the submarinedocent GitHub org"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "week_ending": "2026-10-16",
       "from": "2026-10-09",
       "to": "2026-10-16",
