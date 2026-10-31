@@ -49,6 +49,7 @@ if sys.argv[2] == "edit":
     out["upload"] = c.post(f"/admin/eternal-patrol/{boat['id']}/upload-image", data={"field_name": "photo_boat"},
                            files={"image": ("new.jpg", b"uploaded-on-live-site", "image/jpeg")}, headers=auth).status_code
     out["feedback_post"] = c.post("/feedback", json={"source": "contact", "message": "Sent live.", "email": "v@example.org"}).status_code
+    m._keep_unsent_contact("test", "en", "Q", "R", "Body", b"audio", "audio/webm")
 boat = next(b for b in c.get("/api/eternal-patrol").json() if b["boat_number"] == "SS-8")
 out["prior_history"] = boat.get("prior_history")
 out["photo_boat"] = boat.get("photo_boat")
@@ -66,6 +67,7 @@ import io, tarfile
 r = c.get("/admin/backup", headers=auth)
 names = tarfile.open(fileobj=io.BytesIO(r.content), mode="r:gz").getnames() if r.status_code == 200 else []
 out["backup_feedback"] = [n for n in names if n.endswith("feedback.jsonl")]
+out["backup_names"] = names
 out["contact_failures_on_disk"] = m.CONTACT_FAILURES_PATH.startswith(m._RENDER_DATA_DIR + "/")
 print("RESULT " + json.dumps(out))
 '''
@@ -131,6 +133,12 @@ def main():
     check("feedback survives a deploy", second["feedback"] == ["Sent live."], str(second["feedback"]))
     check("unsent historian messages are kept on the disk", second["contact_failures_on_disk"] is True)
     check("backup holds feedback once", second["backup_feedback"] == ["data/feedback.jsonl"], str(second["backup_feedback"]))
+    # Every path this work made persistent must be in the backup (Irving, 31 October 2026).
+    names = second["backup_names"]
+    for f in ("eternal_patrol.jsonl", "moh_recipients.jsonl", "feedback.jsonl", "contact_failures.jsonl"):
+        check(f"backup holds {f}", f"data/{f}" in names)
+    for d in ("eternal_patrol_images", "contact_failures_audio"):
+        check(f"backup holds {d}/", any(n.startswith(f"data/{d}/") for n in names))
     check("repository files untouched", digest(*tracked) == before)
     check("no feedback file in the app directory", not os.path.exists(os.path.join(REPO, "feedback.jsonl")) or feedback_before)
 
