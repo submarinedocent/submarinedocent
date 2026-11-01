@@ -49,7 +49,8 @@ if sys.argv[2] == "edit":
     out["upload"] = c.post(f"/admin/eternal-patrol/{boat['id']}/upload-image", data={"field_name": "photo_boat"},
                            files={"image": ("new.jpg", b"uploaded-on-live-site", "image/jpeg")}, headers=auth).status_code
     out["feedback_post"] = c.post("/feedback", json={"source": "contact", "message": "Sent live.", "email": "v@example.org"}).status_code
-    m._keep_unsent_contact("test", "en", "Q", "R", "Body", b"audio", "audio/webm")
+    out["contact_post"] = c.post("/contact", data={"question_text": "Q", "visitor_response": "R", "lang": "en"},
+                                 files={"audio": ("q.webm", b"audio", "audio/webm")}).status_code
 boat = next(b for b in c.get("/api/eternal-patrol").json() if b["boat_number"] == "SS-8")
 out["prior_history"] = boat.get("prior_history")
 out["photo_boat"] = boat.get("photo_boat")
@@ -68,7 +69,8 @@ r = c.get("/admin/backup", headers=auth)
 names = tarfile.open(fileobj=io.BytesIO(r.content), mode="r:gz").getnames() if r.status_code == 200 else []
 out["backup_feedback"] = [n for n in names if n.endswith("feedback.jsonl")]
 out["backup_names"] = names
-out["contact_failures_on_disk"] = m.CONTACT_FAILURES_PATH.startswith(m._RENDER_DATA_DIR + "/")
+out["contact_on_disk"] = all(p.startswith(m._RENDER_DATA_DIR + "/") for p in
+                             (m.CONTACT_MESSAGES_PATH, m.CONTACT_MESSAGES_AUDIO_DIR, m.CONTACT_FAILURES_PATH))
 print("RESULT " + json.dumps(out))
 '''
 
@@ -79,6 +81,9 @@ def deploy(disk, mode):
     # an unset CONTENT_ROOT, and on 30 Oct 2026 that sent this test's writes
     # into corpora_local.
     env["CONTENT_ROOT"] = "corpora"
+    # Empty, not unset, for the same reason: .env.local holds the real mail
+    # account, and the edit run posts a historian message.
+    env.update({"SMTP_USER": "", "SMTP_PASS": "", "HISTORIAN_EMAIL": ""})
     p = subprocess.run([sys.executable, "-c", DEPLOY, REPO, mode], env=env, capture_output=True, text=True, cwd=REPO)
     line = next((l for l in p.stdout.splitlines() if l.startswith("RESULT ")), None)
     if line is None:
@@ -131,13 +136,14 @@ def main():
     check("photo in git still served from the bundle", second["bundled_status"] == 200 and second["bundled_len"] > 1000,
           f"{second['bundled_status']} {second['bundled_len']}")
     check("feedback survives a deploy", second["feedback"] == ["Sent live."], str(second["feedback"]))
-    check("unsent historian messages are kept on the disk", second["contact_failures_on_disk"] is True)
+    check("historian messages and the unsent list are on the disk", second["contact_on_disk"] is True)
     check("backup holds feedback once", second["backup_feedback"] == ["data/feedback.jsonl"], str(second["backup_feedback"]))
     # Every path this work made persistent must be in the backup (Irving, 31 October 2026).
     names = second["backup_names"]
-    for f in ("eternal_patrol.jsonl", "moh_recipients.jsonl", "feedback.jsonl", "contact_failures.jsonl"):
+    for f in ("eternal_patrol.jsonl", "moh_recipients.jsonl", "feedback.jsonl", "contact_messages.jsonl",
+              "contact_failures.jsonl"):
         check(f"backup holds {f}", f"data/{f}" in names)
-    for d in ("eternal_patrol_images", "contact_failures_audio"):
+    for d in ("eternal_patrol_images", "contact_messages_audio"):
         check(f"backup holds {d}/", any(n.startswith(f"data/{d}/") for n in names))
     check("repository files untouched", digest(*tracked) == before)
     check("no feedback file in the app directory", not os.path.exists(os.path.join(REPO, "feedback.jsonl")) or feedback_before)

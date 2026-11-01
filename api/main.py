@@ -1085,42 +1085,90 @@ print(f"Loaded: {len(FAQ)} faq, {len(SHORTS)} shorts chunks, {len(CATEGORIES)} c
 
 
 
-# A historian message that was not emailed is kept here in full, on the disk, so
-# a failed send loses nothing (Irving, 30 October 2026).  Before this the only
-# copy was Render's log output.  Any audio goes in the folder beside it.
-# Private visitor data: never copied into corpora/.
+# Every historian message is kept on the disk before any send is tried, so a
+# crash or a hung mail server loses nothing (Irving, 31 October 2026).  Until
+# then only messages that failed to send were kept, and before 30 October not
+# even those.  Recordings go in the folder beside it.  Private visitor data:
+# never copied into corpora/.
+CONTACT_MESSAGES_PATH = (
+    os.path.join(_RENDER_DATA_DIR, "contact_messages.jsonl")
+    if _persistent_disk_available
+    else os.path.join(BASE_DIR, "contact_messages.jsonl")
+)
+CONTACT_MESSAGES_AUDIO_DIR = os.path.splitext(CONTACT_MESSAGES_PATH)[0] + "_audio"
+
+# Every message nobody was emailed about, from either form, with the reason:
+# the list to read when email is down (30 October 2026; the contact form joined
+# it 31 October).  Each line stands alone.  A recording is not copied again: its
+# audio_file names the file in CONTACT_MESSAGES_AUDIO_DIR.
 CONTACT_FAILURES_PATH = (
     os.path.join(_RENDER_DATA_DIR, "contact_failures.jsonl")
     if _persistent_disk_available
     else os.path.join(BASE_DIR, "contact_failures.jsonl")
 )
-CONTACT_FAILURES_AUDIO_DIR = os.path.splitext(CONTACT_FAILURES_PATH)[0] + "_audio"
+
+# "Name" <a@b.c> forms and anything with whitespace are refused: the value goes
+# into a mail header, and a visitor-typed newline there would add headers.
+_REPLY_TO_RE = re.compile(r"[^@\s<>,;\"']+@[^@\s<>,;\"']+\.[^@\s<>,;\"']+")
 
 
-def _keep_unsent_contact(reason: str, lang: str, question: str, visitor_response: str,
-                         body: str, audio_bytes: bytes, audio_ct: str) -> None:
-    import datetime
-    import uuid
-    entry = {
-        "ts": datetime.datetime.utcnow().isoformat() + "Z",
-        "reason": reason,
-        "lang": lang,
-        "question": question,
-        "visitor_response": visitor_response,
-        "body": body,
-        "audio_file": None,
-    }
+def _send_site_email(subject: str, body: str, reply_to: str = "",
+                     attachment: Optional[Tuple[bytes, str, str]] = None) -> str:
+    """Email HISTORIAN_EMAIL.  Returns "" when sent, otherwise why it was not.
+
+    attachment is (bytes, maintype/subtype, filename).
+    """
+    if not SMTP_USER or not SMTP_PASS:
+        return "SMTP_USER or SMTP_PASS not set"
+    if not HISTORIAN_EMAIL:
+        # Rather than handing the server an empty To: header.
+        return "HISTORIAN_EMAIL not set"
     try:
-        if audio_bytes:
-            os.makedirs(CONTACT_FAILURES_AUDIO_DIR, exist_ok=True)
-            name = f"{entry['ts'][:19].replace(':', '')}-{uuid.uuid4().hex[:8]}.{'mp4' if 'mp4' in audio_ct else 'webm'}"
-            with open(os.path.join(CONTACT_FAILURES_AUDIO_DIR, name), "wb") as f:
-                f.write(audio_bytes)
-            entry["audio_file"] = name
-        with open(CONTACT_FAILURES_PATH, "a", encoding="utf-8") as f:
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_USER
+        msg["To"] = HISTORIAN_EMAIL
+        msg["Subject"] = subject
+        if reply_to and _REPLY_TO_RE.fullmatch(reply_to):
+            msg["Reply-To"] = reply_to
+        msg.attach(MIMEText(body, "plain"))
+        if attachment:
+            data, ctype, filename = attachment
+            maintype, _, subtype = ctype.partition("/")
+            part = MIMEBase(maintype, subtype)
+            part.set_payload(data)
+            encoders.encode_base64(part)
+            part.add_header("Content-Disposition", "attachment", filename=filename)
+            msg.attach(part)
+        # A timeout, so a mail server that never answers cannot hold the
+        # request open; the message is already on the disk either way.
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+    except Exception as e:
+        return f"send failed: {type(e).__name__}: {e}"
+    return ""
+
+
+def _append_jsonl(path: str, entry: Dict[str, Any], label: str) -> None:
+    try:
+        with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     except Exception as e:
-        print(f"[CONTACT] could not keep unsent message: {e}")
+        print(f"[CONTACT] could not write {label}: {e}")
+
+
+def _record_unsent(form: str, reason: str, entry: Dict[str, Any]) -> None:
+    """Add a message nobody was emailed about to CONTACT_FAILURES_PATH."""
+    import datetime
+    print(f"[CONTACT] {form} message not emailed: {reason}")
+    _append_jsonl(CONTACT_FAILURES_PATH, {
+        "failed_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "form": form,
+        "reason": reason,
+        **entry,
+    }, "unsent message")
 
 
 @app.post("/contact")
@@ -1130,7 +1178,9 @@ async def contact(
     lang: str = Form("en"),
     audio: Optional[UploadFile] = File(None),
 ):
-    """Receive a visitor question + contact response and email the historian."""
+    """Receive a visitor question + contact response, keep it, and email the historian."""
+    import datetime
+    import uuid
     question = question_text.strip()
     visitor_response = visitor_response.strip()
 
@@ -1146,49 +1196,42 @@ async def contact(
     )
     print(f"[CONTACT] {body}")
 
-    # Read once, before any send, so an unsent message keeps its recording.
     audio_bytes = (await audio.read()) if audio else b""
-    audio_ct = (audio.content_type or "audio/webm") if audio else ""
+    audio_ext = "mp4" if audio and "mp4" in (audio.content_type or "") else "webm"
+    ts = datetime.datetime.utcnow().isoformat() + "Z"
+    entry = {
+        "ts": ts,
+        "id": uuid.uuid4().hex[:12],
+        "lang": lang,
+        "question": question,
+        "visitor_response": visitor_response,
+        "body": body,
+        "audio_file": None,
+    }
+    # Kept first, before any send.
+    if audio_bytes:
+        name = f"{ts[:19].replace(':', '')}-{entry['id']}.{audio_ext}"
+        try:
+            os.makedirs(CONTACT_MESSAGES_AUDIO_DIR, exist_ok=True)
+            with open(os.path.join(CONTACT_MESSAGES_AUDIO_DIR, name), "wb") as f:
+                f.write(audio_bytes)
+            entry["audio_file"] = name
+        except Exception as e:
+            print(f"[CONTACT] could not keep recording: {e}")
+    _append_jsonl(CONTACT_MESSAGES_PATH, entry, "historian message")
 
-    def keep(reason: str) -> None:
-        _keep_unsent_contact(reason, lang, question, visitor_response, body, audio_bytes, audio_ct)
-
-    if not SMTP_USER or not SMTP_PASS:
-        keep("SMTP_USER or SMTP_PASS not set")
-        return {"status": "logged", "note": "Set SMTP_USER and SMTP_PASS env vars to enable email."}
-    if not HISTORIAN_EMAIL:
-        # Degrade the same way missing SMTP credentials do, rather than handing
-        # the server an empty To: header.
-        keep("HISTORIAN_EMAIL not set")
-        return {"status": "logged", "note": "Set HISTORIAN_EMAIL to enable delivery."}
-
-    try:
-        msg = MIMEMultipart()
-        msg["From"] = SMTP_USER
-        msg["To"] = HISTORIAN_EMAIL
-        msg["Subject"] = "submarinedocent.org visitor question"
-        msg.attach(MIMEText(body, "plain"))
-
-        # Attach audio recording if provided
-        if audio_bytes:
-            ext = "mp4" if "mp4" in audio_ct else "webm"
-            part = MIMEBase("audio", ext)
-            part.set_payload(audio_bytes)
-            encoders.encode_base64(part)
-            part.add_header("Content-Disposition", "attachment", filename=f"question.{ext}")
-            msg.attach(part)
-
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.ehlo()
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.send_message(msg)
-
+    reason = _send_site_email(
+        "submarinedocent.org visitor question", body,
+        attachment=(audio_bytes, f"audio/{audio_ext}", f"question.{audio_ext}") if audio_bytes else None,
+    )
+    if not reason:
         return {"status": "sent"}
-    except Exception as e:
-        print(f"[CONTACT] Email send failed: {e}")
-        keep(f"send failed: {type(e).__name__}: {e}")
-        return {"status": "error", "detail": str(e)}
+    _record_unsent("historian", reason, entry)
+    if reason.startswith("send failed"):
+        return {"status": "error", "detail": reason}
+    note = ("Set SMTP_USER and SMTP_PASS env vars to enable email." if reason.startswith("SMTP")
+            else "Set HISTORIAN_EMAIL to enable delivery.")
+    return {"status": "logged", "note": note}
 
 
 @app.get("/health")
@@ -6380,7 +6423,19 @@ def receive_feedback(payload: dict):
     except Exception as e:
         print(f"[feedback] write error: {e}")
     if source == "contact":
-        print(f"[feedback] contact from {entry.get('email') or 'anon'} — {entry['message'][:80]}")
+        print(f"[feedback] contact from {entry.get('email') or 'anon'}: {entry['message'][:80]}")
+        # Kept above; now someone is told.  Storing a message without telling
+        # anyone is not enough (Irving, 31 October 2026).  The visitor's answer
+        # does not depend on the email: the message is already kept.
+        reason = _send_site_email(
+            "submarinedocent.org contact form",
+            f"Name: {entry['name'] or '(not given)'}\n"
+            f"Email: {entry['email'] or '(not given)'}\n\n"
+            f"Message:\n{entry['message']}",
+            reply_to=entry["email"],
+        )
+        if reason:
+            _record_unsent("contact_form", reason, entry)
     else:
         print(f"[feedback] {entry['rating']} — {entry['question'][:80]}")
     return {"status": "ok"}
