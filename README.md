@@ -13,7 +13,7 @@ Code as a pair programmer; every change is reviewed and approved by a human.
 
 ## Quick start
 
-You need Python 3.9 or newer. Nothing else — no database, no vector store, no
+You need Python 3.14 or newer. Nothing else — no database, no vector store, no
 API key.
 
 ```bash
@@ -116,7 +116,7 @@ glossary, or in any video the catalogue links to.
 
 ## Stack
 
-Python 3.9+, FastAPI and Uvicorn, a static HTML/CSS/JavaScript frontend, and
+Python 3.14+, FastAPI and Uvicorn, a static HTML/CSS/JavaScript frontend, and
 JSONL corpora on disk. Transcription and email delivery are optional
 third-party services; without them the features degrade rather than fail.
 
