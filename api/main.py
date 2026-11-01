@@ -1151,6 +1151,69 @@ def _send_site_email(subject: str, body: str, reply_to: str = "",
     return ""
 
 
+# At most this many visitor-message emails per clock hour (UTC), both forms
+# together (Irving, 31 October 2026).  Past it every message is still kept and
+# listed as unsent, and one email at the top of the next hour says how many
+# waited.  That summary goes out then rather than at the moment of pausing,
+# when the count would always be one.  Held in memory: a restart starts the
+# hour again, and the unsent list on the disk keeps every held message.
+NOTIFY_CAP_PER_HOUR = int(os.getenv("NOTIFY_CAP_PER_HOUR", "20"))
+_notify_lock = threading.Lock()
+_notify_hour = -1
+_notify_sent = 0
+_notify_held: Dict[int, int] = {}  # paused hour -> messages held; popped by its summary
+_notify_now = time.time  # replaced in tests
+
+
+def _hour_label(hour: int) -> str:
+    return time.strftime("%H:00 UTC on %d %B %Y", time.gmtime(hour * 3600))
+
+
+def _send_paused_summary(hour: int, held: int) -> None:
+    """The one email for a paused hour: how many messages waited."""
+    reason = _send_site_email(
+        "submarinedocent.org notifications paused: "
+        f"{held} message{'s' if held != 1 else ''} waiting",
+        f"Visitor-message emails stopped after {NOTIFY_CAP_PER_HOUR} in the hour "
+        f"from {_hour_label(hour)}.\n\n"
+        f"{held} more message{'s' if held != 1 else ''} arrived in that hour and "
+        f"{'were' if held != 1 else 'was'} not emailed. Every one is saved on the "
+        "site and listed in contact_failures.jsonl with the reason "
+        "\"notification cap\".\n\nNotifications have resumed.",
+    )
+    if reason:
+        print(f"[CONTACT] paused-hour summary not emailed: {reason}")
+
+
+def _notify_historian(subject: str, body: str, reply_to: str = "",
+                      attachment: Optional[Tuple[bytes, str, str]] = None) -> str:
+    """_send_site_email under the hourly cap.  "" when sent, else why not."""
+    global _notify_hour, _notify_sent
+    hour = int(_notify_now() // 3600)
+    with _notify_lock:
+        if hour != _notify_hour:
+            _notify_hour, _notify_sent = hour, 0
+        if _notify_sent >= NOTIFY_CAP_PER_HOUR:
+            _notify_held[hour] = _notify_held.get(hour, 0) + 1
+            if _notify_held[hour] == 1:
+                # Fires at the top of the next hour and reads the final count.
+                delay = (hour + 1) * 3600 - _notify_now()
+                timer = threading.Timer(max(delay, 0), _flush_paused_hour, args=(hour,))
+                timer.daemon = True
+                timer.start()
+            return (f"notification cap: {NOTIFY_CAP_PER_HOUR} emails this hour; "
+                    f"paused until {_hour_label(hour + 1)}")
+        _notify_sent += 1
+    return _send_site_email(subject, body, reply_to=reply_to, attachment=attachment)
+
+
+def _flush_paused_hour(hour: int) -> None:
+    with _notify_lock:
+        held = _notify_held.pop(hour, 0)
+    if held:
+        _send_paused_summary(hour, held)
+
+
 def _append_jsonl(path: str, entry: Dict[str, Any], label: str) -> None:
     try:
         with open(path, "a", encoding="utf-8") as f:
@@ -1220,7 +1283,7 @@ async def contact(
             print(f"[CONTACT] could not keep recording: {e}")
     _append_jsonl(CONTACT_MESSAGES_PATH, entry, "historian message")
 
-    reason = _send_site_email(
+    reason = _notify_historian(
         "submarinedocent.org visitor question", body,
         attachment=(audio_bytes, f"audio/{audio_ext}", f"question.{audio_ext}") if audio_bytes else None,
     )
@@ -1229,8 +1292,12 @@ async def contact(
     _record_unsent("historian", reason, entry)
     if reason.startswith("send failed"):
         return {"status": "error", "detail": reason}
-    note = ("Set SMTP_USER and SMTP_PASS env vars to enable email." if reason.startswith("SMTP")
-            else "Set HISTORIAN_EMAIL to enable delivery.")
+    if reason.startswith("notification cap"):
+        note = "Saved; email notifications are paused for this hour."
+    elif reason.startswith("SMTP"):
+        note = "Set SMTP_USER and SMTP_PASS env vars to enable email."
+    else:
+        note = "Set HISTORIAN_EMAIL to enable delivery."
     return {"status": "logged", "note": note}
 
 
@@ -6427,7 +6494,7 @@ def receive_feedback(payload: dict):
         # Kept above; now someone is told.  Storing a message without telling
         # anyone is not enough (Irving, 31 October 2026).  The visitor's answer
         # does not depend on the email: the message is already kept.
-        reason = _send_site_email(
+        reason = _notify_historian(
             "submarinedocent.org contact form",
             f"Name: {entry['name'] or '(not given)'}\n"
             f"Email: {entry['email'] or '(not given)'}\n\n"

@@ -172,6 +172,58 @@ def main():
     sending(lambda: client.post("/feedback", json={"source": "tour", "question": "Q", "answer": "A", "rating": "up"}))
     check("a tour rating sends no email", _SendingSMTP.sent == [] and len(fails()) == before_fails)
 
+    print("Hourly cap, both forms together")
+    clock = [1_700_000_000 // 3600 * 3600 + 3600 + 60.0]  # one minute into a fresh hour
+    m._notify_now = lambda: clock[0]
+    timers = []
+
+    class _Timer:  # records the scheduled summary instead of waiting an hour
+        def __init__(self, delay, fn, args=()):
+            self.delay, self.fn, self.args, self.daemon = delay, fn, args, False
+
+        def start(self):
+            timers.append(self)
+
+    real_timer = m.threading.Timer
+    m.threading.Timer = _Timer
+    try:
+        _SendingSMTP.sent = []
+        m.smtplib.SMTP = _SendingSMTP
+        msgs_before, fails_before = len(msgs()), len(fails())
+        for i in range(m.NOTIFY_CAP_PER_HOUR):
+            (historian if i % 2 else contact_form)(f"Within the cap {i}")
+        check(f"{m.NOTIFY_CAP_PER_HOUR} messages in an hour, {m.NOTIFY_CAP_PER_HOUR} emails",
+              len(_SendingSMTP.sent) == m.NOTIFY_CAP_PER_HOUR, str(len(_SendingSMTP.sent)))
+        r1 = historian("Past the cap: historian")
+        r2 = contact_form("Past the cap: contact form")
+        contact_form("Past the cap: third")
+        check("no email past the cap", len(_SendingSMTP.sent) == m.NOTIFY_CAP_PER_HOUR, str(len(_SendingSMTP.sent)))
+        check("every held message still kept", msgs()[-1].get("question") == "Past the cap: historian"
+              and rows(m.FEEDBACK_PATH)[-1].get("message") == "Past the cap: third")
+        held = fails()[fails_before:]
+        check("each held message listed as unsent with the cap reason", len(held) == 3
+              and all(h.get("reason", "").startswith("notification cap") for h in held), str([h.get("reason") for h in held]))
+        check("visitors see their usual reply", r2.json() == {"status": "ok"} and r1.json().get("status") == "logged")
+        check("one summary scheduled, for the top of the next hour",
+              len(timers) == 1 and abs(timers[0].delay - 3540) < 1 and timers[0].daemon, str([(t.delay, t.daemon) for t in timers]))
+
+        # A message in the new hour before the summary fires must not lose the count.
+        clock[0] += 3600
+        contact_form("Next hour, first")
+        check("notifications resume the next hour", len(_SendingSMTP.sent) == m.NOTIFY_CAP_PER_HOUR + 1)
+        timers[0].fn(*timers[0].args)
+        summary = _SendingSMTP.sent[-1]
+        text = summary.get_payload()[0].get_payload()
+        check("one 'paused, N waiting' email with the real count",
+              summary["Subject"] == "submarinedocent.org notifications paused: 3 messages waiting"
+              and "3 more messages" in text and "contact_failures.jsonl" in text, summary["Subject"])
+        timers[0].fn(*timers[0].args)
+        check("the summary is sent once", len(_SendingSMTP.sent) == m.NOTIFY_CAP_PER_HOUR + 2)
+    finally:
+        m.threading.Timer = real_timer
+        m.smtplib.SMTP = real
+        m._notify_now = m.time.time
+
     print(f"\n{'FAILED' if failures else 'ok'}: {len(failures)} failure(s)")
     sys.exit(1 if failures else 0)
 
