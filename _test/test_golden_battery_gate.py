@@ -13,11 +13,12 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
 GOLDEN = os.path.join(REPO, "_test", "golden_visitor_questions.jsonl")
-# 31 Oct 2026 (Irving): 80, today's score, so any net loss fails instead of
-# being tolerated.  A floor sees totals, not swaps: compare rows before and after.
+# 31 Oct 2026 (Irving): 80, then 84 once four phrasings landed.  The floor is
+# today's score, so any net loss fails instead of being tolerated.  A floor
+# sees totals, not swaps: compare rows before and after.
 # 2 Oct 2026: 7 pam_-derived fix_ records removed; raise to at least 65 when replacements land.
 # (Was 62: 51/99 before patch 2026-10-01; floor set at post-patch score.)
-PASS_FLOOR = 80
+PASS_FLOOR = 84
 
 
 def main() -> int:
