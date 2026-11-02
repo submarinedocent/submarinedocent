@@ -13,17 +13,12 @@ import math
 import os
 import re
 import secrets
-import smtplib
 import threading
 import time
 import shutil
 import unicodedata
 import uuid
 import httpx
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
 from typing import Dict, List, Tuple, Any, Optional
 
 app = FastAPI(title="SubmarineDocent")
@@ -979,10 +974,13 @@ _TTS_CACHE_DIR = _editable_corpus_dir("tts_cache")
 # public repo is both an exposure and a trap, since a fork would silently
 # mail this project's owner. Unset means the contact form logs instead of sends.
 HISTORIAN_EMAIL = os.getenv("HISTORIAN_EMAIL", "").strip()
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")   # set in start_https.sh
-SMTP_PASS = os.getenv("SMTP_PASS", "")   # Gmail App Password
+# Mail goes out through Resend's HTTP API (Irving, 2 November 2026).  Gmail
+# SMTP refused logins from Render's addresses; HTTPS on 443 is not an SMTP port.
+# MAIL_FROM is an address on a domain verified in Resend, for example
+# "submarinedocent.org <notify@submarinedocent.org>".
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
+MAIL_FROM = os.getenv("MAIL_FROM", "").strip()
+RESEND_URL = "https://api.resend.com/emails"
 
 
 def load_jsonl(path: str) -> List[Dict[str, Any]]:
@@ -1112,42 +1110,43 @@ CONTACT_FAILURES_PATH = (
 _REPLY_TO_RE = re.compile(r"[^@\s<>,;\"']+@[^@\s<>,;\"']+\.[^@\s<>,;\"']+")
 
 
+def _resend_post(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """POST one email to Resend; the response JSON.  Replaced in tests."""
+    # A timeout, so a mail service that never answers cannot hold the request
+    # open; the message is already on the disk either way.
+    resp = httpx.post(RESEND_URL, json=payload, timeout=30, headers={
+        "Authorization": f"Bearer {RESEND_API_KEY}",
+        "User-Agent": "submarinedocent.org"})
+    resp.raise_for_status()
+    return resp.json()
+
+
 def _send_site_email(subject: str, body: str, reply_to: str = "",
                      attachment: Optional[Tuple[bytes, str, str]] = None) -> str:
     """Email HISTORIAN_EMAIL.  Returns "" when sent, otherwise why it was not.
 
     attachment is (bytes, maintype/subtype, filename).
     """
-    if not SMTP_USER or not SMTP_PASS:
-        return "SMTP_USER or SMTP_PASS not set"
+    if not RESEND_API_KEY or not MAIL_FROM:
+        return "RESEND_API_KEY or MAIL_FROM not set"
     if not HISTORIAN_EMAIL:
-        # Rather than handing the server an empty To: header.
         return "HISTORIAN_EMAIL not set"
+    payload: Dict[str, Any] = {"from": MAIL_FROM, "to": [HISTORIAN_EMAIL],
+                               "subject": subject, "text": body}
+    if reply_to and _REPLY_TO_RE.fullmatch(reply_to):
+        payload["reply_to"] = reply_to
+    if attachment:
+        data, ctype, filename = attachment
+        payload["attachments"] = [{"filename": filename, "content_type": ctype,
+                                   "content": base64.b64encode(data).decode("ascii")}]
     try:
-        msg = MIMEMultipart()
-        msg["From"] = SMTP_USER
-        msg["To"] = HISTORIAN_EMAIL
-        msg["Subject"] = subject
-        if reply_to and _REPLY_TO_RE.fullmatch(reply_to):
-            msg["Reply-To"] = reply_to
-        msg.attach(MIMEText(body, "plain"))
-        if attachment:
-            data, ctype, filename = attachment
-            maintype, _, subtype = ctype.partition("/")
-            part = MIMEBase(maintype, subtype)
-            part.set_payload(data)
-            encoders.encode_base64(part)
-            part.add_header("Content-Disposition", "attachment", filename=filename)
-            msg.attach(part)
-        # A timeout, so a mail server that never answers cannot hold the
-        # request open; the message is already on the disk either way.
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
-            server.ehlo()
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.send_message(msg)
+        result = _resend_post(payload)
+    except httpx.HTTPStatusError as e:
+        return f"send failed: HTTP {e.response.status_code}: {e.response.text[:300]}"
     except Exception as e:
         return f"send failed: {type(e).__name__}: {e}"
+    if not result.get("id"):
+        return f"send failed: no id in Resend's reply: {str(result)[:300]}"
     return ""
 
 
@@ -1294,8 +1293,8 @@ async def contact(
         return {"status": "error", "detail": reason}
     if reason.startswith("notification cap"):
         note = "Saved; email notifications are paused for this hour."
-    elif reason.startswith("SMTP"):
-        note = "Set SMTP_USER and SMTP_PASS env vars to enable email."
+    elif reason.startswith("RESEND"):
+        note = "Set RESEND_API_KEY and MAIL_FROM to enable email."
     else:
         note = "Set HISTORIAN_EMAIL to enable delivery."
     return {"status": "logged", "note": note}

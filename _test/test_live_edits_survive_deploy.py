@@ -83,7 +83,7 @@ def deploy(disk, mode):
     env["CONTENT_ROOT"] = "corpora"
     # Empty, not unset, for the same reason: .env.local holds the real mail
     # account, and the edit run posts a historian message.
-    env.update({"SMTP_USER": "", "SMTP_PASS": "", "HISTORIAN_EMAIL": ""})
+    env.update({"RESEND_API_KEY": "", "MAIL_FROM": "", "HISTORIAN_EMAIL": ""})
     p = subprocess.run([sys.executable, "-c", DEPLOY, REPO, mode], env=env, capture_output=True, text=True, cwd=REPO)
     line = next((l for l in p.stdout.splitlines() if l.startswith("RESULT ")), None)
     if line is None:

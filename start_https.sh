@@ -32,8 +32,8 @@ fi
 
 # Fallback: set these here only for local dev if .env.local is absent
 # export GROQ_API_KEY=""     # get a free key at console.groq.com
-# export SMTP_USER=""
-# export SMTP_PASS=""
+# export RESEND_API_KEY=""
+# export MAIL_FROM=""
 
 # Kill anything already on the HTTPS port
 lsof -ti:"$LOCAL_HTTPS_PORT" | xargs kill -9 2>/dev/null || true

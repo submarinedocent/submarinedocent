@@ -220,8 +220,8 @@ See [.env.example](.env.example) for defaults.
 - `GROQ_API_KEY` — enables server-side Whisper transcription at `/transcribe`. Without it `/health` reports `transcribe_available: false` and voice input falls back to the browser's own speech recognition, or to typing.
 - `OPENAI_API_KEY` — enables spoken answers at `/tts`. Without it `/health` reports `tts_available: false`.
 - `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE` — optional overrides. Default `gpt-4o-mini-tts` and `alloy`.
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` — email delivery.
-- `HISTORIAN_EMAIL` — where visitor questions from the "no answer found" flow are sent. There is no default; unset, the flow records the question and sends nothing.
+- `RESEND_API_KEY`, `MAIL_FROM`: email delivery through [Resend](https://resend.com)'s API. `MAIL_FROM` is an address on a domain verified in Resend, such as `Site <notify@example.org>`. Unset, nothing is emailed; every message is still kept and listed as unsent.
+- `HISTORIAN_EMAIL`: where messages from both visitor forms, the contact page and the "no answer found" flow, are emailed. There is no default; unset, messages are kept and nothing is sent.
 
 ### Route protection
 
