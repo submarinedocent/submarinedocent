@@ -122,6 +122,9 @@ jobs:
       - name: Live edits survive a deploy
         run: python3 _test/test_live_edits_survive_deploy.py
 
+      - name: Lost-boat photos move, swap and remove without loss
+        run: python3 _test/test_lost_boat_photos.py
+
       - name: Unsent historian messages are kept
         run: python3 _test/test_contact_failures_kept.py
         env:

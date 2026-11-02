@@ -4502,6 +4502,15 @@ async def upload_admin_eternal_patrol_image(
     extension = _safe_image_extension(image.filename, image.content_type)
     os.makedirs(_ETERNAL_PATROL_UPLOAD_DIR, exist_ok=True)
     filename = _build_eternal_patrol_image_name(target, field_name, extension)
+    # A photo moved to another slot keeps its file name, so the name this slot
+    # uploads under can belong to a photo now shown in another slot.  Never
+    # write over it.
+    in_use = {target.get(f) for f in allowed_fields if f != field_name}
+    stem, ext = os.path.splitext(filename)
+    n = 2
+    while f"images/extracted/{filename}" in in_use:
+        filename = f"{stem}_{n}{ext}"
+        n += 1
     destination = os.path.join(_ETERNAL_PATROL_UPLOAD_DIR, filename)
 
     try:

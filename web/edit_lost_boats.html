@@ -385,8 +385,36 @@
 
     .photo-frame.upload-target {
       position: relative;
-      cursor: copy;
       transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+
+    .photo-frame.upload-target:has(.photo-empty) {
+      cursor: pointer;
+    }
+
+    .photo-frame.upload-target img {
+      cursor: grab;
+    }
+
+    .photo-hint {
+      display: block;
+      margin-top: 6px;
+      font-size: 13px;
+    }
+
+    .photo-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .photo-actions .btn {
+      min-height: 34px;
+      font-size: 13px;
+    }
+
+    .photo-actions .btn[hidden] {
+      display: none;
     }
 
     .photo-frame.drag-over {
@@ -702,6 +730,7 @@
     let busy = false;
     let lastSavedPayload = null;
     let nextDraftBoatId = -1;
+    let dragSourceField = null;
 
     function setStatus(message, type = 'info') {
       const status = document.getElementById('status');
@@ -785,6 +814,20 @@
       document.getElementById('save-boat-btn').disabled = busy || !hasActiveBoat || !hasUnsavedChanges();
       deleteButton.hidden = !hasActiveBoat || isDraftBoat(boat);
       deleteButton.disabled = busy || !hasActiveBoat || isDraftBoat(boat);
+      document.querySelectorAll('.slot-choose, .slot-remove').forEach(button => {
+        button.disabled = busy || !hasActiveBoat || isDraftBoat(boat);
+      });
+      document.querySelectorAll('.slot-remove').forEach(button => {
+        button.hidden = !slotValue(button.dataset.fieldName);
+      });
+    }
+
+    function slotValue(fieldName) {
+      return document.getElementById(`field-${fieldName}`)?.value || '';
+    }
+
+    function slotLabel(fieldName) {
+      return document.querySelector(`.photo-frame[data-field-name="${fieldName}"]`)?.dataset.altPrefix || fieldName;
     }
 
     function normalizePhotoSrc(path) {
@@ -808,7 +851,7 @@
         return;
       }
       if (!src) {
-        frame.innerHTML = `<div class="photo-empty">${emptyText}</div>`;
+        frame.innerHTML = `<div class="photo-empty">${emptyText}<span class="photo-hint">Click Choose file, or drag a photo here.</span></div>`;
         return;
       }
       frame.innerHTML = `<img src="${escapeHtml(src)}" alt="${escapeHtml(altText)}">`;
@@ -823,6 +866,145 @@
       frame.dataset.fieldName = fieldName;
       frame.dataset.emptyText = emptyText;
       frame.dataset.altPrefix = altPrefix;
+
+      // Every slot gets its own upload and remove buttons.  Until 2 November
+      // 2026 the only way in was dragging a file from the computer onto the
+      // slot, and there was no way to empty one.
+      const picker = document.createElement('input');
+      picker.type = 'file';
+      picker.accept = 'image/jpeg,image/png,image/webp,image/gif';
+      picker.hidden = true;
+      const actions = document.createElement('div');
+      actions.className = 'photo-actions';
+      actions.innerHTML = `
+        <button type="button" class="btn secondary slot-choose" data-field-name="${fieldName}">Choose file…</button>
+        <button type="button" class="btn danger slot-remove" data-field-name="${fieldName}">Remove</button>`;
+      actions.appendChild(picker);
+      frame.insertAdjacentElement('afterend', actions);
+      actions.querySelector('.slot-choose').addEventListener('click', () => picker.click());
+      actions.querySelector('.slot-remove').addEventListener('click', () => removeImage(fieldName));
+      frame.addEventListener('click', () => {
+        if (!busy && !slotValue(fieldName) && getActiveBoat() && !isDraftBoat(getActiveBoat())) {
+          picker.click();
+        }
+      });
+      picker.addEventListener('change', async () => {
+        const file = picker.files?.[0];
+        picker.value = '';
+        if (!file) {
+          return;
+        }
+        try {
+          await uploadImage(fieldName, file);
+        } catch (error) {
+          setStatus(error.message, 'error');
+        }
+      });
+    }
+
+    function refreshPhotoPreviews() {
+      const boat = getActiveBoat();
+      const boatName = boat?.designation || boat?.name || 'Boat';
+      updatePhotoPreview('photo-boat-frame', slotValue('photo_boat'), `${boatName} photo`, 'No boat photo');
+      updatePhotoPreview('photo-captain-frame', slotValue('photo_captain'), `${boatName} captain photo`, 'No captain photo');
+      ['image1', 'image2', 'image3', 'image4'].forEach(updateGalleryPreview);
+      updateActionButtons();
+    }
+
+    // Photo changes save at once.  Take only those fields from the server's
+    // copy, so unsaved edits elsewhere in the form stay in the form and still
+    // count as unsaved.
+    function applySavedFields(serverBoat, fields) {
+      const boat = getActiveBoat();
+      fields.forEach(field => {
+        const value = serverBoat[field] ?? '';
+        const node = document.getElementById(`field-${field}`);
+        if (node) {
+          node.value = value;
+        }
+        if (boat) {
+          boat[field] = serverBoat[field];
+        }
+        if (lastSavedPayload) {
+          lastSavedPayload[field] = value;
+        }
+      });
+      refreshPhotoPreviews();
+    }
+
+    async function saveImageFields(changes, doneMessage) {
+      const boat = getActiveBoat();
+      if (!boat) {
+        throw new Error('Select a boat first');
+      }
+      if (isDraftBoat(boat)) {
+        throw new Error('Save the boat before changing its images');
+      }
+      setBusy(true);
+      setStatus('Saving…', 'info');
+      try {
+        const response = await fetch(`${API}/admin/eternal-patrol/${boat.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        });
+        if (!response.ok) {
+          let detail = 'Failed to save the change';
+          try {
+            const errorPayload = await response.json();
+            detail = errorPayload.detail || detail;
+          } catch {
+            // ignore
+          }
+          throw new Error(detail);
+        }
+        const result = await response.json();
+        applySavedFields(result.boat, Object.keys(changes));
+        setStatus(doneMessage, 'success');
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    // Dragging a photo onto another slot moves it.  If that slot already has a
+    // photo, the two swap, so nothing is lost.  A gallery image's caption goes
+    // with it between gallery slots; the boat and captain slots have none.
+    async function moveImage(fromField, toField) {
+      const fromValue = slotValue(fromField);
+      const toValue = slotValue(toField);
+      if (!fromValue || fromField === toField) {
+        return;
+      }
+      const changes = { [toField]: fromValue, [fromField]: toValue || null };
+      const isGallery = field => /^image\d$/.test(field);
+      if (isGallery(fromField) && isGallery(toField)) {
+        changes[`${toField}_subtitle`] = slotValue(`${fromField}_subtitle`);
+        changes[`${fromField}_subtitle`] = slotValue(`${toField}_subtitle`);
+      }
+      let message = toValue
+        ? `Swapped the photos in ${slotLabel(fromField)} and ${slotLabel(toField)}.`
+        : `Moved the photo from ${slotLabel(fromField)} to ${slotLabel(toField)}.`;
+      const leftCaption = [fromField, toField].find(field => isGallery(field) && slotValue(`${field}_subtitle`));
+      if (isGallery(fromField) !== isGallery(toField) && leftCaption) {
+        message += ` The ${slotLabel(leftCaption)} caption stayed where it was; check it still fits.`;
+      }
+      await saveImageFields(changes, message);
+    }
+
+    async function removeImage(fieldName) {
+      if (!slotValue(fieldName) || busy) {
+        return;
+      }
+      const boat = getActiveBoat();
+      const boatName = boat?.designation || boat?.name || 'this boat';
+      if (!window.confirm(`Remove the ${slotLabel(fieldName)} from ${boatName}? The file itself is kept on the server.`)) {
+        return;
+      }
+      try {
+        await saveImageFields({ [fieldName]: null }, `Removed the ${slotLabel(fieldName)}.`);
+      } catch (error) {
+        setStatus(error.message, 'error');
+      }
     }
 
     async function uploadImage(fieldName, file) {
@@ -834,7 +1016,7 @@
         throw new Error('Save the boat before uploading images');
       }
       if (!file || !file.type.startsWith('image/')) {
-        throw new Error('Please drop an image file');
+        throw new Error('That is not an image file. Use a JPG, PNG, WebP or GIF.');
       }
 
       const formData = new FormData();
@@ -859,14 +1041,8 @@
           throw new Error(detail);
         }
         const result = await response.json();
-        const pathField = document.getElementById(`field-${fieldName}`);
-        if (pathField) {
-          pathField.value = result.path || '';
-        }
-        boats = boats.map(entry => Number(entry.id) === Number(boat.id) ? result.boat : entry);
-        populateEditor(result.boat);
-        renderBoatList();
-        setStatus(`Uploaded ${fieldName.replace('_', ' ')}.`, 'success');
+        applySavedFields(result.boat, [fieldName]);
+        setStatus(`Uploaded the ${slotLabel(fieldName)}.`, 'success');
       } finally {
         setBusy(false);
       }
@@ -874,12 +1050,23 @@
 
     function bindUploadTargets() {
       document.querySelectorAll('.photo-frame.upload-target').forEach(frame => {
+        frame.addEventListener('dragstart', event => {
+          if (busy || !slotValue(frame.dataset.fieldName)) {
+            event.preventDefault();
+            return;
+          }
+          dragSourceField = frame.dataset.fieldName;
+          event.dataTransfer.effectAllowed = 'move';
+        });
+        frame.addEventListener('dragend', () => {
+          dragSourceField = null;
+        });
         frame.addEventListener('dragover', event => {
           if (busy) {
             return;
           }
           event.preventDefault();
-          event.dataTransfer.dropEffect = 'copy';
+          event.dataTransfer.dropEffect = dragSourceField ? 'move' : 'copy';
           frame.classList.add('drag-over');
         });
         frame.addEventListener('dragleave', () => {
@@ -889,6 +1076,19 @@
           event.preventDefault();
           frame.classList.remove('drag-over');
           if (busy) {
+            return;
+          }
+          // A photo dragged from another slot is a move.  Safari also hands it
+          // over as a file, and before 2 November 2026 that file was uploaded
+          // again here, leaving the same photo in both slots.
+          if (dragSourceField) {
+            const fromField = dragSourceField;
+            dragSourceField = null;
+            try {
+              await moveImage(fromField, frame.dataset.fieldName);
+            } catch (error) {
+              setStatus(error.message, 'error');
+            }
             return;
           }
           const file = event.dataTransfer?.files?.[0];
@@ -976,10 +1176,7 @@
         node.value = boat[field] ?? '';
       });
       lastSavedPayload = isDraftBoat(boat) ? null : collectEditorPayload();
-      updatePhotoPreview('photo-boat-frame', boat.photo_boat, `${boat.designation || boat.name || 'Boat'} photo`, 'No boat photo');
-      updatePhotoPreview('photo-captain-frame', boat.photo_captain, `${boat.designation || boat.name || 'Boat'} captain photo`, 'No captain photo');
-      ['image1', 'image2', 'image3', 'image4'].forEach(updateGalleryPreview);
-      updateActionButtons();
+      refreshPhotoPreviews();
     }
 
     async function loadBoats(preferredBoatId = activeBoatId) {
@@ -1146,7 +1343,9 @@
         <li>Click <strong>New</strong> to add a submarine not yet in the list.</li>
         <li>Edit the fields and click <strong>Save</strong> to update the record.</li>
         <li>Click <strong>Delete</strong> to permanently remove a record.</li>
-        <li>You can upload a photo for the boat or its commanding officer.</li>
+        <li>Each photo slot has <strong>Choose file…</strong>, which uploads a JPG, PNG, WebP or GIF from your computer, and <strong>Remove</strong>, which empties the slot. You can also drag a file from your computer onto a slot.</li>
+        <li>Drag a photo from one slot to another to move it. If the other slot already has a photo, the two swap.</li>
+        <li>Photo changes save at once. Text changes need <strong>Save</strong>.</li>
       </ul>
     </div>
   </div>
