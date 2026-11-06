@@ -38,6 +38,7 @@ Maintainer: Irving Greisman. Public repo: github.com/submarinedocent/submarinedo
 - One commit per logical change. Show the diff before pushing when the change touches licensing files, the README, `CONTRIBUTING.md`, or anything visitor-facing.
 - Never commit: `.env*` except `.env.example`, anything under `/data` patterns, backups, `corpora_local/`, Finder duplicates (`* copy*`), review CSVs, design sources, or `docs/internal/`.
 - Nothing under `docs/internal/` ships. The public `docs/` holds three files: `architecture.md`, `maintaining.md`, and `images/ask-the-docent.png`.
+- A push to main redeploys production, with about a minute of 502s. Tell Irving before any push, with the restart count, and wait for his go. Deploys that change the Lost Boats editor or visitor email need a warning to the site's editors first, which Irving handles. Routine restarts, including the weekly What's New push, need none.
 
 ## Identity and rights
 
