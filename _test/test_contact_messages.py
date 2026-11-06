@@ -71,9 +71,9 @@ def main():
     msgs = lambda: rows(m.CONTACT_MESSAGES_PATH)
     fails = lambda: rows(m.CONTACT_FAILURES_PATH)
 
-    def historian(q, audio=None):
+    def historian(q, audio=None, contact="reach me at v@example.org"):
         files = {"audio": ("q.webm", audio, "audio/webm")} if audio else None
-        return client.post("/contact", data={"question_text": q, "visitor_response": "reach me at v@example.org",
+        return client.post("/contact", data={"question_text": q, "visitor_response": contact,
                                              "lang": "en"}, files=files)
 
     def contact_form(message, email="v@example.org"):
@@ -130,6 +130,14 @@ def main():
           and att.get("filename") == "question.webm"
           and base64.b64decode(att.get("content", "")) == b"RIFF-two", str(_Sent.sent[:1])[:300])
     check("a sent message is kept but not listed as unsent", msgs()[-1].get("question") == "Sent fine?" and len(fails()) == before_fails)
+    # The contact box is free text.  Only a value that passes the contact
+    # form's address check becomes the Reply-To; anything else stays in the body.
+    check("free-text contact info gets no Reply-To", _Sent.sent and "reply_to" not in _Sent.sent[0], str(_Sent.sent[:1])[:200])
+    sending(lambda: historian("Reply to me?", contact="v@example.org"))
+    check("contact info that is an address becomes the Reply-To",
+          _Sent.sent and _Sent.sent[0].get("reply_to") == "v@example.org", str(_Sent.sent[:1])[:200])
+    sending(lambda: historian("Two lines?", contact="v@example.org\nBcc: x@example.org"))
+    check("contact info with a newline gets no Reply-To", _Sent.sent and "reply_to" not in _Sent.sent[0])
 
     print("Contact-form messages")
     res = sending(lambda: contact_form("A question about Cod."))
