@@ -1,0 +1,43 @@
+name: Lost Boats editor in each browser
+
+# The photo-slot scenarios in _test/browser, in each engine on Linux and in
+# Chromium and Firefox on Windows, where Dwight edits.  A real operating-system
+# file drag is not covered: Playwright cannot make one, so a person checks it.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  scenarios:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-latest, browser: chromium, deps: --with-deps}
+          - {os: ubuntu-latest, browser: firefox, deps: --with-deps}
+          - {os: ubuntu-latest, browser: webkit, deps: --with-deps}
+          - {os: windows-latest, browser: chromium, deps: ''}
+          - {os: windows-latest, browser: firefox, deps: ''}
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.browser }} on ${{ matrix.os }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      # Pinned: an unpinned Playwright moved the browser build under the
+      # scratch tests on 2 November 2026.
+      - name: Install dependencies
+        run: pip install -r requirements.txt playwright==1.64.1
+
+      - name: Install ${{ matrix.browser }}
+        run: python -m playwright install ${{ matrix.deps }} ${{ matrix.browser }}
+
+      - name: Photo slots move, swap, upload and remove
+        run: python _test/browser/run.py --browser ${{ matrix.browser }}
