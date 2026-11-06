@@ -54,7 +54,10 @@ class Harness:
     def start(self):
         env = {**os.environ, "SUBDOCENT_DATA_DIR": self.disk, "CONTENT_ROOT": "corpora",
                "ADMIN_USERNAME": USER, "ADMIN_PASSWORD": PASSWORD,
-               "RESEND_API_KEY": "", "MAIL_FROM": "", "HISTORIAN_EMAIL": ""}
+               "RESEND_API_KEY": "", "MAIL_FROM": "", "HISTORIAN_EMAIL": "",
+               # The app prints emoji at startup; on Windows, output sent to a
+               # file is cp1252 unless Python runs in UTF-8 mode.
+               "PYTHONUTF8": "1"}
         self.log = open(os.path.join(self.disk, "server.log"), "w", encoding="utf-8")
         self.server = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "api.main:app", "--host", "127.0.0.1", "--port", str(self.port)],
