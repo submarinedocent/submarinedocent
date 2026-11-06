@@ -1282,8 +1282,10 @@ async def contact(
             print(f"[CONTACT] could not keep recording: {e}")
     _append_jsonl(CONTACT_MESSAGES_PATH, entry, "historian message")
 
+    # The contact box is free text; _send_site_email makes it the Reply-To only
+    # when the whole value passes the contact form's address check.
     reason = _notify_historian(
-        "submarinedocent.org visitor question", body,
+        "submarinedocent.org visitor question", body, reply_to=visitor_response,
         attachment=(audio_bytes, f"audio/{audio_ext}", f"question.{audio_ext}") if audio_bytes else None,
     )
     if not reason:
