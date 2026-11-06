@@ -1,14 +1,14 @@
 """Shared setup for the Lost Boats photo-slot browser scenarios.
 
 Starts the site on a temporary disk, never production, and opens the Lost
-Boats editor on O-9 the way Dwight found it on 2 November 2026: the boat photo
+Boats editor on O-9 the way the site's editor found it on 2 November 2026: the boat photo
 in the boat slot and the captain slot empty.  Works on Linux and Windows:
 paths come from os.path and tempfile, and the server is a subprocess, not a
 shell line.
 
 Not covered here: a real operating-system drag (a picture dragged from
 Explorer, Finder or another window, or a drag whose data the OS builds).
-Playwright cannot perform one.  A person has to check that, in Dwight's
+Playwright cannot perform one.  A person has to check that, in the editor's
 browser on Windows, after any change to the editor's drag handling.
 """
 import base64
@@ -97,7 +97,7 @@ class Harness:
             return json.load(r)
 
     def reset_o9(self):
-        """O-9 as Dwight found it, and an empty upload folder."""
+        """O-9 as the site's editor found it, and an empty upload folder."""
         self._request(f"/admin/eternal-patrol/{O9_ID}", method="PUT", data=json.dumps(
             {"photo_boat": BUNDLED, "photo_captain": None, "cause": "Foundered"}).encode())
         if os.path.isdir(self.upload_dir):
@@ -138,7 +138,7 @@ class Harness:
 
         with_file=False is Playwright's own mouse drag.  with_file=True replays
         the events a browser sends when it hands the picture over as a file,
-        which is what Dwight's browser did; it does not prove that a given
+        which is what the editor's browser did; it does not prove that a given
         browser on a given OS builds the drop that way.
         """
         if not with_file:

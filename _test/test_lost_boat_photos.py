@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Lost-boat photo slots: move, swap and remove lose nothing.
 
-On 2 November 2026 Dwight dragged O-9's captain photo from the boat slot to the
-captain slot and got two copies, and could not empty a slot.  The editor now
-moves a photo with one PUT naming both slots, swaps when the target is full,
-and removes by setting the slot to null.  A moved photo keeps its file name,
-so the upload that follows must not write over it.  This test plays those
+On 2 November 2026 the site's editor dragged O-9's captain photo from the boat
+slot to the captain slot and got two copies, and could not empty a slot. The
+editor now moves a photo with one PUT naming both slots, swaps when the target
+is full, and removes by setting the slot to null. A moved photo keeps its file
+name, so the upload that follows must not write over it. This test plays those
 steps against a temporary disk.
 
     python3 _test/test_lost_boat_photos.py

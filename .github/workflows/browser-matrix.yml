@@ -1,7 +1,7 @@
 name: Lost Boats editor in each browser
 
 # The photo-slot scenarios in _test/browser, in each engine on Linux and in
-# Chromium and Firefox on Windows, where Dwight edits.  A real operating-system
+# Chromium and Firefox on Windows, where the site's editor works.  A real operating-system
 # file drag is not covered: Playwright cannot make one, so a person checks it.
 on:
   push:

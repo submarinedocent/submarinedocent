@@ -1,7 +1,7 @@
 """Dragging onto a full slot swaps the two photos and writes no file.
 
 Not covered: a real operating-system file drag (from Explorer, Finder or another
-window).  Playwright cannot make one; a person checks it in Dwight's browser on
+window).  Playwright cannot make one; a person checks it in the editor's browser on
 Windows after any change to the editor's drag handling.
 """
 
