@@ -1,6 +1,160 @@
 {
   "entries": [
     {
+      "week_ending": "2026-11-06",
+      "from": "2026-10-30",
+      "to": "2026-11-06",
+      "generated": "2026-11-06T08:34:59-08:00",
+      "commits_total": 16,
+      "commits_listed": 3,
+      "commits": [
+        {
+          "sha": "864b5c6",
+          "summary": "Visitor-message email through Resend's API instead of Gmail SMTP",
+          "date": "2026-11-02T08:20:00-08:00",
+          "area": "",
+          "files": 6,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "3180738",
+          "summary": "Lost boats editor: drag moves a photo, every slot has Choose file and Remove",
+          "date": "2026-11-02T06:34:58-08:00",
+          "area": "Pages and layout",
+          "files": 4,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "eefd4f1",
+          "summary": "Visitor-message emails capped at 20 an hour, both forms together",
+          "date": "2026-10-31T21:12:13-07:00",
+          "area": "",
+          "files": 2,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "fd20b6d",
+          "summary": "Every visitor message is kept first and emailed to the historian",
+          "date": "2026-10-31T20:16:54-07:00",
+          "area": "",
+          "files": 7,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "be05fee",
+          "summary": "Golden battery floor 80 to 84, with the four phrasings in the seed",
+          "date": "2026-10-31T19:51:33-07:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "8d2b550",
+          "summary": "Seed: phrasings on four records, as applied in production on 31 October",
+          "date": "2026-10-31T19:50:47-07:00",
+          "area": "Answers",
+          "files": 1,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "56ffe18",
+          "summary": "Golden battery floor 60 to 80, today's score",
+          "date": "2026-10-31T19:47:36-07:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "5681aac",
+          "summary": "Smoke test runs production's Python, 3.14; README minimum follows",
+          "date": "2026-10-31T19:17:09-07:00",
+          "area": "",
+          "files": 2,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "f8e5b4f",
+          "summary": "Workflows: checkout and setup-python v7, which run on Node 24",
+          "date": "2026-10-31T19:09:58-07:00",
+          "area": "",
+          "files": 2,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "a368a04",
+          "summary": "Golden battery: five tour questions rated down on 2 October",
+          "date": "2026-10-31T16:51:42-07:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "f41766f",
+          "summary": "Backups hold every path a deploy no longer wipes",
+          "date": "2026-10-31T16:44:46-07:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "c02f54c",
+          "summary": "Keep every unsent historian message on the disk",
+          "date": "2026-10-30T13:27:27-07:00",
+          "area": "",
+          "files": 6,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "6bd7eda",
+          "summary": "Visitor feedback lives on the persistent disk",
+          "date": "2026-10-30T13:00:29-07:00",
+          "area": "",
+          "files": 3,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "306148d",
+          "summary": "Lost boats, their photos and Medal of Honor live on the persistent disk",
+          "date": "2026-10-30T10:41:25-07:00",
+          "area": "",
+          "files": 3,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "2f8fb79",
+          "summary": "Lost boats: Prior History follows Loss Narrative",
+          "date": "2026-10-30T10:21:43-07:00",
+          "area": "Pages and layout",
+          "files": 4,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "31c82e3",
+          "summary": "What's New: week ending 2026-10-30",
+          "date": "2026-10-30T15:31:17Z",
+          "area": "Pages and layout",
+          "files": 1,
+          "public": false,
+          "reason": "an editing screen, not a visitor page"
+        }
+      ]
+    },
+    {
       "week_ending": "2026-10-30",
       "from": "2026-10-23",
       "to": "2026-10-30",

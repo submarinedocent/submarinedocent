@@ -1,6 +1,60 @@
 {
   "entries": [
     {
+      "week_ending": "2026-11-06",
+      "from": "2026-10-30",
+      "to": "2026-11-06",
+      "generated": "2026-11-06T08:34:59-08:00",
+      "commits_total": 16,
+      "commits_listed": 3,
+      "totals": [
+        {
+          "label": "Answers",
+          "was": 377,
+          "now": 377
+        },
+        {
+          "label": "Videos",
+          "was": 108,
+          "now": 108
+        },
+        {
+          "label": "Museums listed",
+          "was": 20,
+          "now": 20
+        },
+        {
+          "label": "Museum pages",
+          "was": 2,
+          "now": 2
+        }
+      ],
+      "groups": [
+        {
+          "area": "Answers",
+          "changes": [
+            {
+              "sha": "8d2b550",
+              "summary": "Seed: phrasings on four records, as applied in production on 31 October"
+            }
+          ]
+        },
+        {
+          "area": "Pages and layout",
+          "changes": [
+            {
+              "sha": "3180738",
+              "summary": "Lost boats editor: drag moves a photo, every slot has Choose file and Remove"
+            },
+            {
+              "sha": "2f8fb79",
+              "summary": "Lost boats: Prior History follows Loss Narrative"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "week_ending": "2026-10-23",
       "from": "2026-10-16",
       "to": "2026-10-23",
