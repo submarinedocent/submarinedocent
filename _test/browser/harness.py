@@ -9,7 +9,7 @@ shell line.
 Not covered here: a real operating-system drag (a picture dragged from
 Explorer, Finder or another window, or a drag whose data the OS builds).
 Playwright cannot perform one.  A person has to check that, in the editor's
-browser on Windows, after any change to the editor's drag handling.
+own browser, after any change to the editor's drag handling.
 """
 import base64
 import json

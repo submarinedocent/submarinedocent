@@ -1,8 +1,8 @@
 """Remove shows only on slots that hold a photo.
 
 Not covered: a real operating-system file drag (from Explorer, Finder or another
-window).  Playwright cannot make one; a person checks it in the editor's browser on
-Windows after any change to the editor's drag handling.
+window).  Playwright cannot make one; a person checks it in the editor's own
+browser after any change to the editor's drag handling.
 """
 
 def run(page, h):
