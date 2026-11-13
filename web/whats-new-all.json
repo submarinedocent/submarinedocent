@@ -1,6 +1,88 @@
 {
   "entries": [
     {
+      "week_ending": "2026-11-13",
+      "from": "2026-11-06",
+      "to": "2026-11-13",
+      "generated": "2026-11-13T08:56:11-08:00",
+      "commits_total": 8,
+      "commits_listed": 0,
+      "commits": [
+        {
+          "sha": "b9d29db",
+          "summary": "Browser scenarios: a real drag is checked in the editor's own browser",
+          "date": "2026-11-06T14:14:12-08:00",
+          "area": "",
+          "files": 11,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "22eb44d",
+          "summary": "Lost boats: an upload never writes over a file that exists",
+          "date": "2026-11-06T14:02:29-08:00",
+          "area": "",
+          "files": 4,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "a2a1d11",
+          "summary": "Test comments name no one: \"the site's editor\"",
+          "date": "2026-11-06T10:40:35-08:00",
+          "area": "",
+          "files": 11,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "779918c",
+          "summary": "CLAUDE.md: warn the site's editors only for deploys that change what they use",
+          "date": "2026-11-06T10:16:15-08:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "36994f6",
+          "summary": "Browser scenarios: run the test server in UTF-8 mode for Windows",
+          "date": "2026-11-06T09:57:09-08:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "b587aac",
+          "summary": "\"No answer found\" email replies to the visitor when they left an address",
+          "date": "2026-11-06T09:49:00-08:00",
+          "area": "",
+          "files": 2,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "f5a458d",
+          "summary": "Lost Boats editor scenarios in each browser engine",
+          "date": "2026-11-06T09:48:58-08:00",
+          "area": "",
+          "files": 11,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "7f8984d",
+          "summary": "What's New: week ending 2026-11-06",
+          "date": "2026-11-06T16:34:59Z",
+          "area": "Pages and layout",
+          "files": 2,
+          "public": false,
+          "reason": "an editing screen, not a visitor page"
+        }
+      ]
+    },
+    {
       "week_ending": "2026-11-06",
       "from": "2026-10-30",
       "to": "2026-11-06",
