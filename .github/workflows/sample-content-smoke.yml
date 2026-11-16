@@ -119,6 +119,9 @@ jobs:
       - name: Seed redaction test
         run: python3 _test/test_seed_redactions.py
 
+      - name: No rights fields in public responses
+        run: python3 _test/test_public_no_rights_fields.py
+
       - name: Ask log via test
         run: python3 _test/test_ask_log_via.py
 

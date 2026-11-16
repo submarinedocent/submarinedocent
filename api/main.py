@@ -5465,6 +5465,11 @@ def public_videos(museum_id: str = ""):
 
     wanted_museum = str(museum_id or "").strip()
 
+    # No rights fields go out here.  rights_note is the curator's record of a
+    # permission and can name the person who gave it; until 16 November 2026 it
+    # was served and printed under each video, which put a rights holder's
+    # contact on the public page.  The required credit line still goes out, in
+    # "video".
     out: List[Dict[str, Any]] = []
     for entry in _load_videos_raw():
         video = _video_payload(entry)
@@ -5488,9 +5493,6 @@ def public_videos(museum_id: str = ""):
             "tags": (entry.get("tags") or "").strip(),
             "channel_name": channel_name,
             "channel_url": channel_url,
-            # Why we are permitted to show this one — shown on the page so the
-            # basis is visible rather than buried in a commit message.
-            "rights_note": (entry.get("rights_note") or "").strip(),
             "duration": _normalize_duration(entry.get("duration")),
             "category": categories[0],
             "categories": categories,

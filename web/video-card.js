@@ -121,12 +121,9 @@
       : (video.credit_url && isSafeUrl(video.credit_url)
         ? `<a href="${esc(video.credit_url)}" target="_blank" rel="noopener noreferrer">${esc(video.credit)}</a>`
         : (video.credit ? esc(video.credit) : ''));
-    const rights = v.rights_note
-      ? `<div class="video-rights">${esc(v.rights_note)}</div>`
-      : '';
-    const metaInner = (creditInner || rights)
-      ? `${creditInner}${rights}`
-      : '';
+    // No rights note here: it is the curator's record of a permission, can name
+    // the person who gave it, and the API no longer sends it.
+    const metaInner = creditInner || '';
     const hasDescription = Boolean(descriptionText);
     const meta = metaInner
       ? `<div class="video-meta${hasDescription ? ' is-collapsed' : ''}">${metaInner}</div>`
