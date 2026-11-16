@@ -3078,6 +3078,42 @@ def _video_payload(entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     }
 
 
+def _faq_video_source(entry: Dict[str, Any],
+                      library: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """The record _video_payload should read for a FAQ's video.
+
+    A FAQ that names a video from the library (video_id) gets the library's
+    URL, credit and rights, read fresh each time, so a rights change in the
+    library reaches every answer that plays the video.  The FAQ keeps only its
+    own start time and caption.  A video_id the library no longer holds shows
+    nothing.  A FAQ without video_id is read as it stands: faq_1088 carries
+    its video's fields itself, from before the library link existed.
+    """
+    video_id = str(entry.get("video_id") or "").strip()
+    if not video_id:
+        return entry
+    if library is None:
+        library = {str(v.get("id") or ""): v for v in _load_videos_raw()}
+    video = library.get(video_id)
+    if not video:
+        return {}
+    merged = dict(video)
+    for field in ("video_start", "video_caption"):
+        if entry.get(field) not in (None, ""):
+            merged[field] = entry[field]
+    return merged
+
+
+def _video_start_for_storage(raw: Any) -> Optional[int]:
+    """Seconds into the video, or None to start at the beginning."""
+    if raw in (None, ""):
+        return None
+    try:
+        return max(0, int(raw))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="video_start must be a whole number of seconds")
+
+
 # ── Related outside sources ──────────────────────────────────────────────────
 # A referral, not a reproduction.  Some material we'd like visitors to hear can't
 # be hosted or embedded: Veterans History Project oral histories, for instance,
@@ -3599,7 +3635,7 @@ def synthesize_extractive(
         cited_id = citations[0].get("chunk_id")
         for _, ch_video, _src_video in hits:
             if ch_video.get("chunk_id") == cited_id:
-                video = _video_payload(ch_video)
+                video = _video_payload(_faq_video_source(ch_video))
                 related_links = _related_links_payload(ch_video)
                 break
 
@@ -4047,6 +4083,7 @@ def get_all_faqs():
             # it back on every save; without it, saving cleared the tag.
             "boat": e.get("boat", ""),
             "display_order": e.get("display_order"),
+            "video_id": e.get("video_id", ""),
             "video_url": e.get("video_url", ""),
             "video_start": e.get("video_start"),
             "video_caption": e.get("video_caption", ""),
@@ -4702,6 +4739,14 @@ def public_faqs(museum_id: str = "", boat: str = ""):
     wanted_boat = str(boat or "").strip()
     from collections import defaultdict
 
+    # The video library, read once per request and only if a record links to it.
+    _library: List[Dict[str, Dict[str, Any]]] = []
+
+    def library() -> Dict[str, Dict[str, Any]]:
+        if not _library:
+            _library.append({str(v.get("id") or ""): v for v in _load_videos_raw()})
+        return _library[0]
+
     def _display_order_key(entry: dict[str, Any]) -> tuple[int, int | str]:
         raw_order = entry.get("display_order")
         try:
@@ -4733,7 +4778,7 @@ def public_faqs(museum_id: str = "", boat: str = ""):
                 "id": e["chunk_id"],
                 "title": title,
                 "answer": answer,
-                "video": _video_payload(e),
+                "video": _video_payload(_faq_video_source(e, library())),
                 "related_links": _related_links_payload(e),
                 "display_order": e.get("display_order"),
                 "museum_id": str(e.get("museum_id") or "").strip(),
@@ -5548,6 +5593,15 @@ async def update_faq(chunk_id: str, request: Request):
         # Checked before anything is written, so a rejected phrasing leaves the
         # record exactly as it was.
         phrasings = _phrasings_for_storage(body.get("phrasings")) if "phrasings" in body else None
+        if "video_id" in body:
+            video_id = str(body.get("video_id") or "").strip()
+            video_start = _video_start_for_storage(body.get("video_start"))
+            if video_id and not chunk_id.startswith(("faq_", "fix_")):
+                # Videos never attach to drafts (video plan, 15 September 2026).
+                raise HTTPException(status_code=400,
+                                    detail="a video can be added once the draft is accepted")
+            if video_id and video_id not in {str(v.get("id") or "") for v in _load_videos_raw()}:
+                raise HTTPException(status_code=400, detail=f"no video {video_id!r} in the video library")
         if title:
             entry["title"] = title
         if text:
@@ -5583,6 +5637,27 @@ async def update_faq(chunk_id: str, request: Request):
                 entry["phrasings"] = phrasings
             else:
                 entry.pop("phrasings", None)
+        # A video from the library: only touched when sent, like the fields
+        # above.  The library supplies the URL, credit and rights (see
+        # _faq_video_source), so any copies of them on the record are dropped
+        # and one place decides.  museum_id is left alone: on a FAQ it scopes the
+        # record to a museum page.  An empty video_id removes the video, whether
+        # it came from the library or was carried on the record.
+        if "video_id" in body:
+            for field in ("video_url", "video_credit", "video_credit_url",
+                          "rights_status", "rights_note", "rights_expires"):
+                entry.pop(field, None)
+            if video_id:
+                entry["video_id"] = video_id
+                caption = str(body.get("video_caption") or "").strip()
+                for field, value in (("video_start", video_start), ("video_caption", caption)):
+                    if value:
+                        entry[field] = value
+                    else:
+                        entry.pop(field, None)
+            else:
+                for field in ("video_id", "video_start", "video_caption"):
+                    entry.pop(field, None)
         # Same contract as related_links: only touched when the key is sent, so
         # an ordinary text save can't strip a record's video.  Sending an empty
         # video_url clears the whole attachment rather than leaving orphaned

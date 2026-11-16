@@ -595,6 +595,37 @@
       border-color: #58a6ff;
     }
 
+    #edit-video, #edit-video-start, #edit-video-caption {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-size: 13px;
+      padding: 6px 10px;
+      font-family: inherit;
+    }
+
+    #edit-video { max-width: 520px; width: 100%; cursor: pointer; }
+    #edit-video-start { width: 90px; }
+    #edit-video-caption { width: 100%; max-width: 520px; }
+
+    #edit-video:focus, #edit-video-start:focus, #edit-video-caption:focus {
+      outline: none;
+      border-color: #58a6ff;
+    }
+
+    .video-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 8px;
+      color: #8b949e;
+      font-size: 12px;
+    }
+
+    .video-row a { color: #58a6ff; }
+
     #edit-category option {
       background: #0d1117;
       color: #c9d1d9;
@@ -871,14 +902,25 @@
     // The record's boat is its subject matter, not which museum owns it.
     let boatOptions = [];
 
+    // The video library (/admin/videos), for the Video field.  A FAQ stores only
+    // the chosen video's id; the library supplies its address, credit and rights.
+    let videoLibrary = [];
+    let videoDirty = false;   // the Video field changed since the record was loaded
+
     // ── Load ────────────────────────────────────────────────────────────────────
     async function init() {
       try {
-        const [faqRes, categoryRes, boatRes] = await Promise.all([
+        const [faqRes, categoryRes, boatRes, videoRes] = await Promise.all([
           fetch(`${API}/admin/faqs`),
           fetch(`${API}/api/faq-categories`).catch(() => null),
           fetch(`${API}/api/boats`).catch(() => null),
+          fetch(`${API}/admin/videos`).catch(() => null),
         ]);
+        if (videoRes && videoRes.ok) {
+          videoLibrary = (await videoRes.json())
+            .filter(v => v.id && v.video_url)
+            .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+        }
         if (!faqRes.ok) throw new Error(`HTTP ${faqRes.status}`);
         allFaqs = await faqRes.json();
         if (boatRes && boatRes.ok) {
@@ -965,6 +1007,103 @@
       renderEdit('', '', null, '');
     });
 
+    // ── Video ───────────────────────────────────────────────────────────────────
+    // "1:25", "1:02:03" or "85" to seconds; '' for the start; null if unreadable.
+    function parseVideoStart(raw) {
+      const t = (raw || '').trim();
+      if (!t) return '';
+      if (!/^\d+(:\d{1,2}){0,2}$/.test(t)) return null;
+      return t.split(':').reduce((total, part) => total * 60 + Number(part), 0);
+    }
+
+    function formatVideoStart(seconds) {
+      const n = Number(seconds) || 0;
+      if (!n) return '';
+      const h = Math.floor(n / 3600), m = Math.floor((n % 3600) / 60), sec = n % 60;
+      const mm = h ? String(m).padStart(2, '0') : String(m);
+      return (h ? `${h}:` : '') + `${mm}:${String(sec).padStart(2, '0')}`;
+    }
+
+    // Mirrors the server's _rights_state with RIGHTS_STRICT off; the server
+    // decides what visitors see, this only labels the list.
+    function rightsCleared(v) {
+      const status = (v.rights_status || '').trim().toLowerCase();
+      const expired = v.rights_expires && v.rights_expires < new Date().toISOString().slice(0, 10);
+      return ['granted', 'not_required', ''].includes(status) && !expired;
+    }
+
+    function videoFieldHtml(chunkId) {
+      const rec = (selected && selected.chunk_id === chunkId) ? selected : null;
+      const help = 'Plays under the answer, on the FAQ page and in Ask the Docent. Choose it from the video library; its credit and rights come from there.';
+      if (!chunkId) {
+        return `<div><div class="field-label">Video</div><div class="field-help">${help} Save the new FAQ first, then add a video.</div></div>`;
+      }
+      if (!/^(faq|fix)_/.test(chunkId)) {
+        return `<div><div class="field-label">Video</div><div class="field-help">A video can be added once this draft is accepted.</div></div>`;
+      }
+      const current = (rec && rec.video_id) || '';
+      const inline = !current && rec && rec.video_url ? rec.video_url : '';
+      const known = videoLibrary.some(v => v.id === current);
+      const opts = '<option value="">No video</option>' +
+        (inline ? '<option value="__inline__" selected>Video set on this record (not from the library)</option>' : '') +
+        (current && !known ? `<option value="${esc(current)}" selected>${esc(current)} (no longer in the library: not shown)</option>` : '') +
+        videoLibrary.map(v => `<option value="${esc(v.id)}"${v.id === current ? ' selected' : ''}>` +
+          `${esc(v.title || v.id)} (${esc(v.id)})${rightsCleared(v) ? '' : ': rights not cleared, will not show'}</option>`).join('');
+      return `
+      <div>
+        <div class="field-label">Video</div>
+        <div class="field-help">${help}</div>
+        <select id="edit-video">${opts}</select>
+        <div class="video-row">
+          <label for="edit-video-start">Start at</label>
+          <input id="edit-video-start" placeholder="0:00" value="${esc(formatVideoStart(rec && rec.video_start))}">
+          <span id="edit-video-open"></span>
+        </div>
+        <div class="video-row">
+          <input id="edit-video-caption" placeholder="Caption under the video (optional)" value="${esc((rec && rec.video_caption) || '')}">
+        </div>
+        <div class="field-help" id="edit-video-note"></div>
+      </div>`;
+    }
+
+    function bindVideoField() {
+      const select = document.getElementById('edit-video');
+      if (!select) return;
+      const start = document.getElementById('edit-video-start');
+      const caption = document.getElementById('edit-video-caption');
+      const refresh = () => {
+        const id = select.value;
+        const v = videoLibrary.find(x => x.id === id);
+        const inline = id === '__inline__';
+        start.disabled = caption.disabled = !id || inline;
+        const url = v ? v.video_url : (inline && selected ? selected.video_url : '');
+        document.getElementById('edit-video-open').innerHTML = url
+          ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Open the video</a>` : '';
+        document.getElementById('edit-video-note').textContent = inline
+          ? 'This record carries its own copy of a video\'s address and credit, from before the library link. Choosing a library video, or No video, replaces it.'
+          : (v && !rightsCleared(v) ? 'This video\'s rights are not cleared in the library, so visitors will not see it until they are.' : '');
+      };
+      const changed = () => { dirty = true; videoDirty = true; refresh(); };
+      select.addEventListener('change', changed);
+      start.addEventListener('input', changed);
+      caption.addEventListener('input', changed);
+      refresh();
+    }
+
+    // The video part of a save, or {} when the Video field was not touched, so
+    // an ordinary save never changes a record's video.  null: start unreadable.
+    function videoPayload() {
+      const select = document.getElementById('edit-video');
+      if (!select || !videoDirty || select.value === '__inline__') return {};
+      const start = parseVideoStart(document.getElementById('edit-video-start').value);
+      if (start === null) return null;
+      return {
+        video_id: select.value,
+        video_start: start,
+        video_caption: document.getElementById('edit-video-caption').value.trim(),
+      };
+    }
+
     // ── Render editor ───────────────────────────────────────────────────────────
     function renderEdit(title, text, chunkId, category) {
       category = category || '';
@@ -1030,6 +1169,7 @@
             accept="image/*,.pdf,.txt,.md,.rtf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt">
         </div>
       </div>
+      ${videoFieldHtml(chunkId)}
       <div class="action-bar">
         <button class="btn btn-save" id="btn-save">Save${chunkId ? ' changes' : ''}</button>
         <button class="btn btn-discard" id="btn-discard">Discard edits</button>
@@ -1039,6 +1179,8 @@
 
       document.getElementById('edit-title').addEventListener('input', () => { dirty = true; });
       document.getElementById('edit-phrasings').addEventListener('input', () => { dirty = true; });
+      videoDirty = false;
+      bindVideoField();
       document.getElementById('edit-category').addEventListener('change', e => {
         if (e.target.value === '__new__') {
           const name = prompt('New category name:');
@@ -1342,6 +1484,8 @@
         .split('\n').map(p => p.trim()).filter(Boolean);
       if (!title) { setActionStatus('Title is required.', 'err'); return; }
       if (!text) { setActionStatus('Answer HTML is required.', 'err'); return; }
+      const video = videoPayload();
+      if (video === null) { setActionStatus('Start at: use minutes and seconds, like 1:25, or seconds, like 85.', 'err'); return; }
       setBtns(false); setActionStatus('');
       try {
         let res;
@@ -1353,7 +1497,7 @@
         } else {
           res = await fetch(`${API}/admin/faq/${encodeURIComponent(selected.chunk_id)}`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, text, category, boat, phrasings }),
+            body: JSON.stringify({ title, text, category, boat, phrasings, ...video }),
           });
         }
         if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
@@ -1372,6 +1516,11 @@
           setActionStatus(`Created ${data.chunk_id}`, 'ok');
         } else {
           selected.title = title; selected.text = text; selected.category = category; selected.boat = boat; selected.phrasings = phrasings;
+          const fresh = allFaqs.find(e => e.chunk_id === selected.chunk_id);
+          if (fresh) {
+            for (const f of ['video_id', 'video_url', 'video_start', 'video_caption', 'video_credit', 'video_credit_url']) selected[f] = fresh[f];
+          }
+          videoDirty = false;
           applyFilter();
           setActionStatus('Saved.', 'ok');
         }

@@ -113,6 +113,9 @@ jobs:
       - name: FAQ era test
         run: python3 _test/test_faq_era.py
 
+      - name: FAQ video link test
+        run: python3 _test/test_faq_video_link.py
+
       - name: Ask log via test
         run: python3 _test/test_ask_log_via.py
 
