@@ -9,9 +9,12 @@ credit line a rights holder requires goes out as the video's credit.
     python3 _test/test_public_no_rights_fields.py
 """
 import json
+import os
+import shutil
 import sys
+import tempfile
 
-from seed_guard import load_app
+from seed_guard import REPO, load_app
 
 failures = []
 
@@ -36,14 +39,26 @@ def rights_keys(obj, path="", found=None):
 
 
 def main():
-    m = load_app()
+    # The public seed carries no rights notes, so this copy gets them back, as
+    # the live site's records have them, or the check would prove nothing.
+    root = tempfile.mkdtemp(prefix="publicrights-")
+    corpora = os.path.join(root, "corpora")
+    shutil.copytree(os.path.join(REPO, "corpora"), corpora)
+    path = os.path.join(corpora, "videos.jsonl")
+    with open(path, encoding="utf-8") as fh:
+        videos = [json.loads(l) for l in fh if l.strip()]
+    with open(path, "w", encoding="utf-8") as fh:
+        for v in videos:
+            v["rights_note"] = f"Granted by A. Person by email ({v.get('id')})."
+            fh.write(json.dumps(v, ensure_ascii=False) + "\n")
+
+    m = load_app(copy=corpora)
     from fastapi.testclient import TestClient
     client = TestClient(m.app)
     test = {"X-SubDocent-Test": "1"}
 
-    videos = [json.loads(l) for l in open(m.VIDEOS_PATH) if l.strip()]
-    check("the seed's videos do carry rights notes, so the check means something",
-          any((v.get("rights_note") or "").strip() for v in videos))
+    check("the records served from do carry rights notes, so the check means something",
+          all(v.get("rights_note") for v in m._load_videos_raw()))
 
     museums = client.get("/api/museums").json()
     ids = sorted({str(x.get("id") or "") for x in (museums if isinstance(museums, list) else [])} - {""})
@@ -62,6 +77,7 @@ def main():
         check(f"/ask {faq['chunk_id']}: no rights fields", r.status_code == 200 and not found,
               found if found else r.status_code)
 
+    shutil.rmtree(root, ignore_errors=True)
     print(f"{'FAIL' if failures else 'ok'}: {len(failures)} failure(s)")
     sys.exit(1 if failures else 0)
 

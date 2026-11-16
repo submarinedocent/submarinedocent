@@ -23,6 +23,10 @@ WHAT IT DOES
     not published here either, because nobody has read them
   * museums.jsonl: clears any tour_url, which still points at a withdrawn
     page that 404s
+  * videos.jsonl: drops every rights_note.  A rights note is the curator's
+    record of a permission and can name the person who gave it; the full
+    notes stay on the live site and in its backups.  The credit line and
+    rights_status stay, because the site's rights gate reads rights_status
   * applies the private redaction list (docs/internal/seed-redactions.json)
     to every string in every record, so a personal name the live site keeps
     in a rights note does not reach this public repository, then refuses to
@@ -151,6 +155,13 @@ def transform(filename, records):
     if filename == "dieselsubs_faq_corpus.jsonl":
         kept = [r for r in records if key_of(r).startswith(ANSWERABLE_PREFIXES)]
         return kept, f"{len(records) - len(kept)} unreviewed drafts withheld"
+    if filename == "videos.jsonl":
+        n = 0
+        for r in records:
+            if "rights_note" in r:
+                del r["rights_note"]
+                n += 1
+        return records, (f"{n} rights note(s) kept private" if n else "")
     if filename == "museums.jsonl":
         n = 0
         for r in records:
@@ -312,6 +323,13 @@ def main():
                 problems.append(f"category referenced but not defined: {', '.join(missing)}")
             print(f"\ncategory integrity: {len(used)} referenced, {len(defined)} defined, "
                   f"{'none dangling' if not missing else 'DANGLING'}")
+
+    videos_path = os.path.join(CORPORA, "videos.jsonl")
+    if os.path.exists(videos_path):
+        noted = [key_of(r) for r in load_jsonl_text(open(videos_path, encoding="utf-8").read())
+                 if "rights_note" in r]
+        if noted:
+            problems.append(f"{len(noted)} video(s) in the seed carry a rights_note: {', '.join(noted[:5])}")
 
     # Every seed file, not only the ones written now: a name that reached
     # corpora/ by hand is as public as one this refresh would have added.
