@@ -19,6 +19,8 @@ import shutil
 import sys
 import tempfile
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 failures = []
@@ -34,12 +36,15 @@ def main():
     root = tempfile.mkdtemp(prefix="faqvideo-")
     corpora = os.path.join(root, "corpora")
     shutil.copytree(os.path.join(REPO, "corpora"), corpora)
-
-    os.environ["CONTENT_ROOT"] = corpora
+    # The seed holds no drafts, so the test brings one: a video must not attach
+    # to a draft until it is accepted.
+    with open(os.path.join(corpora, "dieselsubs_faq_corpus.jsonl"), "a") as fh:
+        fh.write(json.dumps({"chunk_id": "der_video_fixture", "title": "A draft question?",
+                             "text": "<p>A draft answer.</p>", "source": "test_fixture"}) + "\n")
     os.environ["ADMIN_USERNAME"] = "t"
     os.environ["ADMIN_PASSWORD"] = "t"
     sys.path.insert(0, REPO)
-    from api import main as m
+    m = load_app(copy=corpora)
     from fastapi.testclient import TestClient
 
     client = TestClient(m.app)
@@ -85,11 +90,10 @@ def main():
     r = client.put(f"/admin/faq/{cid}", json={"video_id": video["id"], "video_start": "x"}, headers=auth)
     check("unreadable start refused", r.status_code == 400, f"got {r.status_code}")
 
-    draft = next((e for e in m.FAQ_ALL if not e["chunk_id"].startswith(("faq_", "fix_"))), None)
-    if draft:
-        r = client.put(f"/admin/faq/{draft['chunk_id']}", json={"video_id": video["id"]}, headers=auth)
-        check("a draft takes no video", r.status_code == 400 and "video_id" not in stored(draft["chunk_id"]),
-              f"got {r.status_code}")
+    check("draft fixture loaded", any(e["chunk_id"] == "der_video_fixture" for e in m.FAQ_ALL))
+    r = client.put("/admin/faq/der_video_fixture", json={"video_id": video["id"]}, headers=auth)
+    check("a draft takes no video", r.status_code == 400 and "video_id" not in (stored("der_video_fixture") or {}),
+          f"got {r.status_code}")
 
     r = client.put(f"/admin/faq/{cid}", json={"video_id": video["id"], "video_start": 85,
                                               "video_caption": "A caption."}, headers=auth)
