@@ -849,12 +849,15 @@
 
     // ── Videos attached to a question ──────────────────────────────────────
     // A rights holder can ask for a video to come down at any time, so removal
-    // has to be one obvious button and no technical knowledge. Clearing
-    // video_url on the record clears the whole attachment server-side.
+    // has to be one obvious button and no technical knowledge.  A question's
+    // video is either a library video, named by video_id, or its own copy of a
+    // video's address (faq_1088, from before the library link).  Both are listed;
+    // an empty video_id clears either server-side and leaves the record's museum
+    // scope alone.
     const attachedEl = document.getElementById('attached');
 
     function renderAttached(faqs) {
-      const withVideo = (faqs || []).filter(f => (f.video_url || '').trim());
+      const withVideo = (faqs || []).filter(f => (f.video_id || '').trim() || (f.video_url || '').trim());
       if (!withVideo.length) {
         attachedEl.innerHTML = `<div class="empty">No videos are attached to a question.</div>`;
         return;
@@ -864,8 +867,8 @@
           <div class="attached-title">${esc(f.title || f.chunk_id)}</div>
           <div class="attached-meta">
             ${f.video_caption ? esc(f.video_caption) + '<br>' : ''}
-            ${esc(f.video_url)}
-            ${f.video_credit ? '<br>' + esc(f.video_credit) : ''}
+            ${f.video_id ? attachedLibraryVideo(f.video_id) : esc(f.video_url)}
+            ${!f.video_id && f.video_credit ? '<br>' + esc(f.video_credit) : ''}
           </div>
           <div class="actions">
             <button class="danger" data-remove="${esc(f.chunk_id)}">Remove this video</button>
@@ -880,9 +883,9 @@
           if (!confirm('Remove this video from that question?\n\nThe written answer stays exactly as it is — only the video goes away.')) return;
           try {
             setStatus(statusEl, 'Removing…');
-            // Empty video_url clears the caption and credit too, so nothing is
-            // left orphaned on the record.
-            await send('PUT', `/admin/faq/${encodeURIComponent(id)}`, { video_url: '' });
+            // Clears the start time, caption and any copied address and credit
+            // too, so nothing is left orphaned on the record.
+            await send('PUT', `/admin/faq/${encodeURIComponent(id)}`, { video_id: '' });
             setStatus(statusEl, 'Removed', 'ok');
             await loadAttached();
           } catch (err) {
@@ -890,6 +893,12 @@
           }
         });
       });
+    }
+
+    function attachedLibraryVideo(id) {
+      const v = (currentVideos || []).find(x => x.id === id);
+      return v ? `From the library: ${esc(v.title || id)} (${esc(id)})`
+        : `${esc(id)}: no longer in the library, so not shown`;
     }
 
     // ── Links out to recordings held elsewhere ─────────────────────────────
@@ -963,8 +972,8 @@
     }
 
     renderNewForm();
-    load();
-    loadAttached();
+    // The attached list names library videos by title, so it waits for them.
+    load().then(loadAttached);
   </script>
 </body>
 

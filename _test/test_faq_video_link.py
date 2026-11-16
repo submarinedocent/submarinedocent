@@ -131,6 +131,15 @@ def main():
         k in rec for k in ("video_id", "video_start", "video_caption", "video_url")), repr(rec.get("video_id")))
     check("removing a video keeps the museum scope", rec.get("museum_id") == museum, repr(rec.get("museum_id")))
 
+    # The video library page's Remove button sends an empty video_id; it must
+    # clear a record's own copy of a video too, still keeping the museum scope.
+    client.put(f"/admin/faq/{sid}", json={"video_url": video["video_url"], "video_credit": "Someone"}, headers=auth)
+    r = client.put(f"/admin/faq/{sid}", json={"video_id": ""}, headers=auth)
+    rec = stored(sid)
+    check("empty video_id clears a copied video", r.status_code == 200 and not any(
+        k in rec for k in ("video_url", "video_credit")), repr(rec.get("video_url")))
+    check("and keeps the museum scope", rec.get("museum_id") == museum, repr(rec.get("museum_id")))
+
     old = page_video("faq_1088")
     check("faq_1088's own copy of its video still plays", bool(old) and "clay_decker" in old["embed_url"], repr(old))
     decker = next(row for row in library if "clay_decker_escaping" in row.get("video_url", ""))
