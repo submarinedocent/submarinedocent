@@ -126,8 +126,8 @@ records — title, description, category, tags, ordering, and a URL pointing at
 YouTube or at the project's own object storage.
 
 Each record carries `rights_status` and `rights_note`; the public seed omits
-`rights_note`, which records who gave permission and stays on the live site.
-Neither is sent to visitors. `_rights_cleared()` is
+`rights_note`, which records who gave permission and is kept privately by the
+project. Neither is sent to visitors. `_rights_cleared()` is
 the single gate deciding whether an asset reaches a visitor; anything not
 cleared is simply absent, and the surrounding answer renders unchanged because
 answer text is written to stand on its own. Admin endpoints read raw records
