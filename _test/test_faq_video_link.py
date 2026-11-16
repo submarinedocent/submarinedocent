@@ -140,6 +140,16 @@ def main():
         k in rec for k in ("video_url", "video_credit")), repr(rec.get("video_url")))
     check("and keeps the museum scope", rec.get("museum_id") == museum, repr(rec.get("museum_id")))
 
+    # The older video_url path neither writes nor clears museum_id.
+    r = client.put(f"/admin/faq/{sid}", json={"video_url": video["video_url"], "museum_id": "99"}, headers=auth)
+    check("a video_url save does not change the museum scope", stored(sid).get("museum_id") == museum,
+          repr(stored(sid).get("museum_id")))
+    client.put(f"/admin/faq/{sid}", json={"video_id": video["id"]}, headers=auth)
+    r = client.put(f"/admin/faq/{sid}", json={"video_url": ""}, headers=auth)
+    rec = stored(sid)
+    check("empty video_url clears a library video too", r.status_code == 200 and "video_id" not in rec, repr(rec.get("video_id")))
+    check("and keeps the museum scope", rec.get("museum_id") == museum, repr(rec.get("museum_id")))
+
     old = page_video("faq_1088")
     check("faq_1088's own copy of its video still plays", bool(old) and "clay_decker" in old["embed_url"], repr(old))
     decker = next(row for row in library if "clay_decker_escaping" in row.get("video_url", ""))

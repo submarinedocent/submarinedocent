@@ -5665,8 +5665,12 @@ async def update_faq(chunk_id: str, request: Request):
         if "video_url" in body:
             video_url = (body.get("video_url") or "").strip()
             if not video_url:
-                for field in ("video_url", "video_start", "video_caption",
-                              "video_credit", "video_credit_url", *RIGHTS_FIELDS):
+                # Not RIGHTS_FIELDS: on a FAQ, museum_id scopes the record to a
+                # museum page and has nothing to do with its video.  Until
+                # 16 November 2026 this clear removed it.
+                for field in ("video_url", "video_id", "video_start", "video_caption",
+                              "video_credit", "video_credit_url",
+                              "rights_status", "rights_note", "rights_expires"):
                     entry.pop(field, None)
             elif not _SAFE_LINK_SCHEME_RE.match(video_url):
                 raise HTTPException(
@@ -5675,8 +5679,9 @@ async def update_faq(chunk_id: str, request: Request):
                 )
             else:
                 entry["video_url"] = video_url
+                # museum_id is left alone here too, for the same reason.
                 for field in ("video_caption", "video_credit", "video_credit_url",
-                              "museum_id", "rights_note", "rights_expires"):
+                              "rights_note", "rights_expires"):
                     if field in body:
                         entry[field] = (body.get(field) or "").strip()
                 # Rejected at write time for the same reason as on videos.jsonl:
