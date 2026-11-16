@@ -9,6 +9,8 @@ Fails (exit 1) if fewer than PASS_FLOOR questions are answered correctly.
 import os
 import sys
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
@@ -23,8 +25,7 @@ PASS_FLOOR = 84
 
 def main() -> int:
     import json
-    from api import main as m
-
+    m = load_app()
     with open(GOLDEN) as fh:
         questions = [json.loads(line) for line in fh if line.strip()]
 

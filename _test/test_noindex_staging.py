@@ -10,6 +10,8 @@ unless SITE_NOINDEX is set.
 import os
 import sys
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 failures = []
@@ -24,7 +26,7 @@ def check(label, ok, detail=""):
 def main():
     os.environ.pop("SITE_NOINDEX", None)
     sys.path.insert(0, REPO)
-    from api import main as m
+    m = load_app()
     from fastapi.testclient import TestClient
 
     client = TestClient(m.app)

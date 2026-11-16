@@ -15,6 +15,8 @@ only the boat's name; the boost now needs the record to match the rest.
 import os
 import sys
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 TEST = {"X-SubDocent-Test": "1"}   # keeps these out of the visitor question log
@@ -28,7 +30,7 @@ def check(label, ok, detail=""):
 
 
 def main() -> int:
-    from api import main as m
+    m = load_app()
     from fastapi.testclient import TestClient
     client = TestClient(m.app)
 

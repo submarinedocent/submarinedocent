@@ -17,6 +17,8 @@ import os
 import sys
 import tempfile
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
@@ -103,7 +105,7 @@ def check(label, ok, detail=""):
 
 
 def main() -> int:
-    from api import main as m
+    m = load_app()
     from fastapi.testclient import TestClient
     client = TestClient(m.app)
 

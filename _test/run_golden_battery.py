@@ -11,6 +11,8 @@ import json
 import os
 import sys
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
@@ -21,8 +23,7 @@ DEFAULT_GOLDEN = os.path.join(
 
 def main(golden_path: str | None = None) -> int:
     golden_path = golden_path or DEFAULT_GOLDEN
-    from api import main as m
-
+    m = load_app()
     with open(golden_path) as fh:
         questions = [json.loads(line) for line in fh if line.strip()]
 

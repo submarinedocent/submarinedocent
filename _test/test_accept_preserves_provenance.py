@@ -23,6 +23,8 @@ import shutil
 import sys
 import tempfile
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 failures = []
@@ -57,12 +59,10 @@ def main():
     with open(os.path.join(corpora, "dieselsubs_faq_corpus.jsonl"), "w", encoding="utf-8") as f:
         for d in drafts:
             f.write(json.dumps(d) + "\n")
-
-    os.environ["CONTENT_ROOT"] = corpora
     os.environ["ADMIN_USERNAME"] = "t"
     os.environ["ADMIN_PASSWORD"] = "t"
     sys.path.insert(0, REPO)
-    from api import main as m
+    m = load_app(copy=corpora)
     from fastapi.testclient import TestClient
 
     client = TestClient(m.app)

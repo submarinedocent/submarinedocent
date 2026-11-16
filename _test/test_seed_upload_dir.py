@@ -11,6 +11,8 @@ import os
 import sys
 import tempfile
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 failures = []
@@ -30,8 +32,7 @@ def write(path, data=b"x"):
 
 def main():
     sys.path.insert(0, REPO)
-    from api import main as m
-
+    m = load_app()
     root = tempfile.mkdtemp(prefix="seedupload-")
     bundled = os.path.join(root, "bundled", "museum_uploads")
     write(os.path.join(bundled, "1", "1_photo.jpg"), b"seed")

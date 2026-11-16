@@ -26,13 +26,14 @@ History. On 22 September this stood at 347 of 366. Three separate causes:
 import os
 import sys
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
 
 def main():
-    from api import main as m
-
+    m = load_app()
     faq = [r for r in m.FAQ
            if str(r.get("chunk_id", "")).startswith(("faq_", "fix_"))]
     if not faq:

@@ -11,6 +11,8 @@ opens with the question's own when or where now gets a small edge.
 import os
 import sys
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 TEST = {"X-SubDocent-Test": "1"}   # keeps these out of the visitor question log
@@ -23,7 +25,7 @@ CASES = [
 
 
 def main() -> int:
-    from api import main as m
+    m = load_app()
     from fastapi.testclient import TestClient
     client = TestClient(m.app)
     for q, want in CASES:

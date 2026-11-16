@@ -13,6 +13,8 @@ import base64
 import os
 import sys
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
@@ -36,8 +38,7 @@ def test_museum_cannot_reach_ask_log() -> bool:
     os.environ["MUSEUM_ADMIN_PASSWORD"] = fake_museum_pass
 
     from starlette.testclient import TestClient
-    from api import main as m
-
+    m = load_app()
     # Force the auth env vars to be read by the module-level variables.
     m.MUSEUM_ADMIN_USERNAME = fake_museum_user
     m.MUSEUM_ADMIN_PASSWORD = fake_museum_pass

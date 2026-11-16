@@ -23,6 +23,8 @@ import shutil
 import sys
 import tempfile
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 BOILERPLATE = "Enjoy the videos and music you love, upload original content."
@@ -58,12 +60,10 @@ def main():
     shutil.copytree(os.path.join(REPO, "sample_data", "corpora"), corpora)
     with open(os.path.join(corpora, "videos.jsonl"), "w", encoding="utf-8") as f:
         f.write(json.dumps(SEED) + "\n")
-
-    os.environ["CONTENT_ROOT"] = corpora
     os.environ["ADMIN_USERNAME"] = "t"
     os.environ["ADMIN_PASSWORD"] = "t"
     sys.path.insert(0, REPO)
-    from api import main as m
+    m = load_app(copy=corpora)
     from fastapi.testclient import TestClient
 
     # Never touch the network. If the fix regresses, this is what lands.

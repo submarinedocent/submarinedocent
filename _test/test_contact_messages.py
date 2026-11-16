@@ -21,6 +21,8 @@ import tempfile
 
 import httpx
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 failures = []
@@ -58,7 +60,7 @@ def main():
     # mail key.  Every send below goes to a stand-in.
     os.environ.update({"RESEND_API_KEY": "", "MAIL_FROM": "", "HISTORIAN_EMAIL": ""})
     sys.path.insert(0, REPO)
-    from api import main as m
+    m = load_app()
     from fastapi.testclient import TestClient
 
     tmp = tempfile.mkdtemp(prefix="contactmsgs-")

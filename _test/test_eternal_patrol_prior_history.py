@@ -16,6 +16,8 @@ import shutil
 import sys
 import tempfile
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 failures = []
@@ -31,11 +33,10 @@ def main():
     root = tempfile.mkdtemp(prefix="epprior-")
     corpora = os.path.join(root, "corpora")
     shutil.copytree(os.path.join(REPO, "corpora"), corpora)
-    os.environ["CONTENT_ROOT"] = corpora
     os.environ["ADMIN_USERNAME"] = "t"
     os.environ["ADMIN_PASSWORD"] = "t"
     sys.path.insert(0, REPO)
-    from api import main as m
+    m = load_app(copy=corpora)
     from fastapi.testclient import TestClient
 
     client = TestClient(m.app)

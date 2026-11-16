@@ -18,6 +18,8 @@ import json
 import os
 import sys
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
@@ -32,8 +34,7 @@ def exactly(title: str) -> str:
 
 
 def main() -> int:
-    from api import main as m
-
+    m = load_app()
     by_id = {e.get("chunk_id"): e for e in m.FAQ}
     missing = [r for r in RECORDS if r not in by_id]
     if missing:

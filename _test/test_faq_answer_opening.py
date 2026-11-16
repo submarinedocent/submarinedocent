@@ -24,6 +24,8 @@ import os
 import re
 import sys
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
@@ -35,8 +37,7 @@ def _norm(s: str) -> str:
 
 
 def main():
-    from api import main as m
-
+    m = load_app()
     faq = [r for r in m.FAQ
            if str(r.get("chunk_id", "")).startswith(("faq_", "fix_"))]
     if not faq:

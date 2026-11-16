@@ -21,6 +21,8 @@ import shutil
 import sys
 import tempfile
 
+from seed_guard import load_app
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEST = {"X-SubDocent-Test": "1"}   # keeps these out of the visitor question log
 failures = []
@@ -37,12 +39,10 @@ def main():
     corpora = os.path.join(root, "corpora")
     shutil.copytree(os.path.join(REPO, "corpora"), corpora,
                     ignore=shutil.ignore_patterns("tts_cache"))
-
-    os.environ["CONTENT_ROOT"] = corpora
     os.environ["ADMIN_USERNAME"] = "t"
     os.environ["ADMIN_PASSWORD"] = "t"
     sys.path.insert(0, REPO)
-    from api import main as m
+    m = load_app(copy=corpora)
     from fastapi.testclient import TestClient
 
     client = TestClient(m.app)
