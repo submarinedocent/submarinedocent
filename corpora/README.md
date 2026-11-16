@@ -58,8 +58,10 @@ above flags both:
   are not — see the next section.
 - `videos.jsonl` **records** are CC BY. The **video** they point at is not.
   No video is distributed in this repository, each record carries its own
-  `rights_status` and `rights_note`, and nothing here grants any rights in the
-  linked material.
+  `rights_status` and, where its rights holder requires one, a credit line,
+  and nothing here grants any rights in the linked material.  The note recording who gave
+  permission, and on what terms, is kept on the live site and not published
+  here.
 
 ## Photographs
 
