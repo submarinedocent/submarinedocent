@@ -23,6 +23,10 @@ WHAT IT DOES
     not published here either, because nobody has read them
   * museums.jsonl: clears any tour_url, which still points at a withdrawn
     page that 404s
+  * applies the private redaction list (docs/internal/seed-redactions.json)
+    to every string in every record, so a personal name the live site keeps
+    in a rights note does not reach this public repository, then refuses to
+    stage if any of the list's forbidden strings is still in corpora/
   * refreshes every other corpus the deployment holds a copy of
   * prints a per-file diff and validates the result
   * stages the changes and stops, so a person reads the diff before it
@@ -61,6 +65,56 @@ DEFAULT_BASE_URL = "https://submarinedocent.org"
 # Files that live on /data but must never enter corpora/.
 NEVER_SEED = frozenset({"ask_log.jsonl", "feedback.jsonl", "contact_messages.jsonl",
                         "contact_failures.jsonl"})
+
+# Personal names the live site keeps (in a rights note, say) and the public seed
+# does not.  The list is private: a list of names to keep out of this repository
+# cannot itself be in it.  docs/internal/ is a separate private repository.
+#   {"replace": [{"find": "...", "replace": "..."}], "never_public": ["..."]}
+REDACTIONS_PATH = os.path.join(REPO, "docs", "internal", "seed-redactions.json")
+
+
+def load_redactions(path=REDACTIONS_PATH):
+    """([(find, replace)], [never_public]) from the private list."""
+    if not os.path.exists(path):
+        sys.exit(f"{os.path.relpath(path, REPO)} not found.  It lists the personal names the "
+                 "seed must not carry; without it nothing can be checked, so nothing is written.")
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    pairs = [(r["find"], r["replace"]) for r in data.get("replace", [])]
+    never = [str(n) for n in data.get("never_public", []) if str(n).strip()]
+    return pairs, never
+
+
+def redact(value, pairs):
+    """(value with every pair applied to every string in it, replacements made)."""
+    if isinstance(value, str):
+        n = 0
+        for find, repl in pairs:
+            if find in value:
+                n += value.count(find)
+                value = value.replace(find, repl)
+        return value, n
+    if isinstance(value, list):
+        out, n = [], 0
+        for item in value:
+            item, k = redact(item, pairs)
+            out.append(item)
+            n += k
+        return out, n
+    if isinstance(value, dict):
+        out, n = {}, 0
+        for key, item in value.items():
+            item, k = redact(item, pairs)
+            out[key] = item
+            n += k
+        return out, n
+    return value, 0
+
+
+def forbidden_in(text, never):
+    """The never_public strings found in text, ignoring case."""
+    low = text.lower()
+    return [n for n in never if n.lower() in low]
 
 
 def env(name, default=None):
@@ -161,13 +215,15 @@ def main():
               "\n".join("  " + l for l in dirty.splitlines()))
         sys.exit("\nCommit or stash them first, so this refresh is the only thing in the diff.")
 
+    pairs, never = load_redactions()
+
     auth = base64.b64encode(
         f"{env('ADMIN_USERNAME')}:{env('ADMIN_PASSWORD')}".encode()).decode()
     print(f"source : {args.base_url}")
     blob = fetch_backup(args.base_url, auth)
     print(f"         {len(blob):,} bytes\n")
 
-    changed, unshipped, rows = [], [], []
+    changed, unshipped, rows, leaks = [], [], [], []
     with tarfile.open(fileobj=io.BytesIO(blob), mode="r:gz") as tar:
         members = {os.path.basename(m.name): m for m in tar.getmembers()
                    if m.name.endswith(".jsonl")}
@@ -180,6 +236,11 @@ def main():
                 continue
             live = load_jsonl_text(tar.extractfile(members[filename]).read().decode("utf-8"))
             live, note = transform(filename, live)
+            live, redacted = redact(live, pairs)
+            if redacted:
+                note = "; ".join(x for x in (note, f"{redacted} private name(s) redacted") if x)
+            if forbidden_in(json.dumps(live, ensure_ascii=False), never):
+                leaks.append(filename)
             have = load_jsonl_text(open(local, encoding="utf-8").read())
 
             live_keys, have_keys = {key_of(r) for r in live}, {key_of(r) for r in have}
@@ -201,6 +262,12 @@ def main():
         print("\non the live disk but not shipped in corpora/ (ignored):")
         for f in unshipped:
             print(f"  {f}")
+
+    if leaks:
+        # Before anything is written, dry run included: the redaction list's
+        # pairs did not cover a name its never_public list forbids.
+        sys.exit("\nREFUSED: a private name survives redaction in " + ", ".join(leaks) +
+                 ".  Add a replace pair to docs/internal/seed-redactions.json.  Nothing written.")
 
     if not changed:
         print("\nAlready in step with the live site. Nothing to do.")
@@ -245,6 +312,15 @@ def main():
                 problems.append(f"category referenced but not defined: {', '.join(missing)}")
             print(f"\ncategory integrity: {len(used)} referenced, {len(defined)} defined, "
                   f"{'none dangling' if not missing else 'DANGLING'}")
+
+    # Every seed file, not only the ones written now: a name that reached
+    # corpora/ by hand is as public as one this refresh would have added.
+    for filename in sorted(os.listdir(CORPORA)):
+        if filename.endswith(".jsonl"):
+            found = forbidden_in(open(os.path.join(CORPORA, filename), encoding="utf-8").read(), never)
+            if found:
+                problems.append(f"{filename} holds {len(found)} string(s) from the private "
+                                "never_public list")
 
     if problems:
         print("\nVALIDATION FAILED — files written but NOT staged:")

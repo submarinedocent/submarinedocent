@@ -116,6 +116,9 @@ jobs:
       - name: FAQ video link test
         run: python3 _test/test_faq_video_link.py
 
+      - name: Seed redaction test
+        run: python3 _test/test_seed_redactions.py
+
       - name: Ask log via test
         run: python3 _test/test_ask_log_via.py
 
