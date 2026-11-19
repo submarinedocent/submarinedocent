@@ -7,6 +7,11 @@
 # Format here, one per line:
 #   hide <sha> <reason>
 #   show <sha> <area> <reason>
+#   say <sha> <visitor wording>
+#
+# "say" replaces a listed commit's subject on the public page with a sentence
+# for visitors; several "say" lines for one commit give several bullets. It
+# does not make a commit appear: that is still show/hide and the path rules.
 #
 # A forced "show" needs an area because the path rules derive the heading from
 # the files changed, and these are commits whose files do not say where they

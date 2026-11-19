@@ -114,6 +114,26 @@ def load_overrides():
                         "reason": reason.strip() or "included by hand"}
     return out
 
+
+def load_wording():
+    """sha -> [visitor wording], from "say <sha> <text>" lines.
+
+    A commit subject is written for whoever reads the history; a visitor needs
+    a sentence about the site. Each "say" line replaces the commit's line on the
+    public page, and several lines for one commit give several bullets. It only
+    rewords: whether the commit appears is still decided by the path rules,
+    trailers and show/hide. The admin changelog keeps the subject.
+    """
+    out = {}
+    if not os.path.exists(OVERRIDES_FILE):
+        return out
+    with open(OVERRIDES_FILE, encoding="utf-8") as f:
+        for raw in f:
+            parts = raw.strip().split(None, 2)
+            if len(parts) == 3 and parts[0] == "say":
+                out.setdefault(parts[1], []).append(parts[2].strip())
+    return out
+
 AREA_ORDER = ["Answers", "Ask the Docent", "Videos", "Museum pages", "Glossary",
               "Lost boats", "Reference material", "Pages and layout"]
 
@@ -250,10 +270,12 @@ def build_entry(since, until):
     base = git("rev-list", "-1", f"--before={since.isoformat()}", "HEAD").strip()
     head = git("rev-parse", "HEAD").strip()
 
+    wording = load_wording()
     groups = {}
     for c in kept:
-        groups.setdefault(c["area"], []).append(
-            {"sha": c["sha"], "summary": c["subject"]})
+        for text in wording.get(c["sha"]) or [c["subject"]]:
+            groups.setdefault(c["area"], []).append(
+                {"sha": c["sha"], "summary": text})
     ordered = [{"area": a, "changes": groups[a]}
                for a in AREA_ORDER if a in groups]
     ordered += [{"area": a, "changes": groups[a]}
@@ -287,6 +309,7 @@ def build_entry(since, until):
         "files": len(c["files"]),
         "public": c["public"],
         "reason": c["reason"],
+        **({"public_wording": wording[c["sha"]]} if c["public"] and c["sha"] in wording else {}),
     } for c in all_commits])
 
     return public, everything
