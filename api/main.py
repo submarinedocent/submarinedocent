@@ -6789,11 +6789,12 @@ ASKLOG_KEY = os.getenv("ASKLOG_KEY", "").strip()
 
 
 @app.get("/asklog/recent")
-def ask_log_recent(request: Request):
+def ask_log_recent(request: Request, date: Optional[str] = None):
     """Question-log lines dated today or yesterday (server date, UTC).
 
     The log keeps the day, not the time, so this is the last 24 hours and up
-    to 24 more.  Read-only.
+    to 24 more.  ?date=YYYY-MM-DD returns exactly that day instead, so a daily
+    review that asks for the day before never reports a line twice.  Read-only.
     """
     import datetime
     import hmac
@@ -6804,8 +6805,18 @@ def ask_log_recent(request: Request):
     if not hmac.compare_digest(given.encode(), ASKLOG_KEY.encode()):
         return JSONResponse({"detail": "Wrong or missing X-AskLog-Key."}, status_code=401,
                             headers={"Cache-Control": "no-store"})
-    today = datetime.date.today()
-    since = (today - datetime.timedelta(days=1)).isoformat()
+    if date is not None:
+        try:
+            day = datetime.date.fromisoformat(date)
+        except ValueError:
+            day = None
+        if day is None or len(date) != 10:
+            return JSONResponse({"detail": "date must be YYYY-MM-DD."}, status_code=400,
+                                headers={"Cache-Control": "no-store"})
+        since = until = day.isoformat()
+    else:
+        today = datetime.date.today()
+        since, until = (today - datetime.timedelta(days=1)).isoformat(), today.isoformat()
     lines: List[Dict[str, Any]] = []
     if os.path.exists(ASK_LOG_PATH):
         with _ask_log_lock:
@@ -6815,9 +6826,9 @@ def ask_log_recent(request: Request):
                 rec = json.loads(raw)
             except Exception:
                 continue
-            if str(rec.get("date", "")) >= since:
+            if since <= str(rec.get("date", "")) <= until:
                 lines.append(rec)
-    return JSONResponse({"from": since, "to": today.isoformat(), "count": len(lines), "entries": lines},
+    return JSONResponse({"from": since, "to": until, "count": len(lines), "entries": lines},
                         headers={"Cache-Control": "no-store"})
 
 

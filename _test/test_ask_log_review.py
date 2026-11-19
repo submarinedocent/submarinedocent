@@ -113,6 +113,19 @@ def main():
     check("today's and yesterday's lines returned", "Yesterday's question?" in qs and len(qs) == len(every) + 1, qs)
     check("older lines left out", "An old question?" not in qs, qs)
     check("count matches", body.get("count") == len(qs))
+    key = {"X-AskLog-Key": "k" * 43}
+    day = yesterday["date"]
+    got = client.get(f"/asklog/recent?date={day}", headers=key).json()
+    check("?date= returns exactly that day",
+          [e["q"] for e in got["entries"]] == ["Yesterday's question?"] and got["from"] == got["to"] == day, got)
+    got = client.get(f"/asklog/recent?date={datetime.date.today().isoformat()}", headers=key).json()
+    check("?date= today leaves yesterday out",
+          "Yesterday's question?" not in [e["q"] for e in got["entries"]] and got["count"] == len(every), got["count"])
+    check("?date= an empty day returns none", client.get(f"/asklog/recent?date=2020-01-01", headers=key).json()["count"] == 0)
+    for bad in ("yesterday", "2026-13-01", "2026-11-1", "20261119", ""):
+        check(f"?date={bad!r} refused", client.get(f"/asklog/recent?date={bad}", headers=key).status_code == 400)
+    check("?date= still needs the key", client.get(f"/asklog/recent?date={day}").status_code == 401)
+
     check("read-only: POST not allowed",
           client.post("/asklog/recent", headers={"X-AskLog-Key": "k" * 43}).status_code == 405)
 
