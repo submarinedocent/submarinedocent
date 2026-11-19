@@ -1,6 +1,151 @@
 {
   "entries": [
     {
+      "week_ending": "2026-11-20",
+      "from": "2026-11-13",
+      "to": "2026-11-20",
+      "generated": "2026-11-19T07:04:37-08:00",
+      "commits_total": 15,
+      "commits_listed": 4,
+      "commits": [
+        {
+          "sha": "1d97da9",
+          "summary": "Seed refresh: control room and bridge videos, lost-boat histories",
+          "date": "2026-11-19T06:22:06-08:00",
+          "area": "Answers",
+          "files": 2,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "4363176",
+          "summary": "Video link test: bring its own fixtures, not the seed's",
+          "date": "2026-11-18T21:18:42-08:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "a193764",
+          "summary": "Seed refresh: FAQ videos, library deletions and grants",
+          "date": "2026-11-18T21:01:59-08:00",
+          "area": "Answers",
+          "files": 3,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "aac516b",
+          "summary": "Museum pages offer their FAQs' videos",
+          "date": "2026-11-18T21:01:59-08:00",
+          "area": "Museum pages",
+          "files": 4,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "a5f68cb",
+          "summary": "Docs: rights notes are kept privately by the project",
+          "date": "2026-11-16T10:04:17-08:00",
+          "area": "",
+          "files": 2,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "3aecfb0",
+          "summary": "Docs: the seed keeps no rights notes",
+          "date": "2026-11-16T09:54:44-08:00",
+          "area": "",
+          "files": 2,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "f98260a",
+          "summary": "Public seed: no rights notes in videos.jsonl",
+          "date": "2026-11-16T09:54:44-08:00",
+          "area": "Videos",
+          "files": 5,
+          "public": false,
+          "reason": "Removed rights notes from the repository seed only; no visitor page showed them."
+        },
+        {
+          "sha": "3be8b72",
+          "summary": "Videos: rights notes stay off the public pages",
+          "date": "2026-11-16T09:20:38-08:00",
+          "area": "Museum pages",
+          "files": 6,
+          "public": true,
+          "reason": ""
+        },
+        {
+          "sha": "3b58cf1",
+          "summary": "Seed refresh: private names stay out of the public corpora",
+          "date": "2026-11-16T09:04:00-08:00",
+          "area": "",
+          "files": 3,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "67de28e",
+          "summary": "FAQ video_url saves never touch museum_id",
+          "date": "2026-11-16T08:28:17-08:00",
+          "area": "",
+          "files": 2,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "2af1c6f",
+          "summary": "Video library page: list and remove library-linked question videos",
+          "date": "2026-11-16T07:54:49-08:00",
+          "area": "Pages and layout",
+          "files": 2,
+          "public": false,
+          "reason": "The video library page is an editing screen."
+        },
+        {
+          "sha": "62d1ce4",
+          "summary": "FAQ video test: a draft fixture, so the draft check runs",
+          "date": "2026-11-16T07:49:30-08:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "6c657bf",
+          "summary": "Tests refuse any corpus but the seed",
+          "date": "2026-11-16T07:49:30-08:00",
+          "area": "",
+          "files": 25,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "560b0b1",
+          "summary": "FAQ editor: add a video from the library",
+          "date": "2026-11-16T07:24:31-08:00",
+          "area": "Pages and layout",
+          "files": 4,
+          "public": false,
+          "reason": "The FAQ editor's video picker is an editing screen; the videos visitors see arrived with the seed refreshes."
+        },
+        {
+          "sha": "710d6f1",
+          "summary": "What's New: week ending 2026-11-13",
+          "date": "2026-11-13T16:56:11+00:00",
+          "area": "Pages and layout",
+          "files": 1,
+          "public": false,
+          "reason": "an editing screen, not a visitor page"
+        }
+      ]
+    },
+    {
       "week_ending": "2026-11-13",
       "from": "2026-11-06",
       "to": "2026-11-13",

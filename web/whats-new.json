@@ -1,6 +1,64 @@
 {
   "entries": [
     {
+      "week_ending": "2026-11-20",
+      "from": "2026-11-13",
+      "to": "2026-11-20",
+      "generated": "2026-11-19T07:04:37-08:00",
+      "commits_total": 15,
+      "commits_listed": 4,
+      "totals": [
+        {
+          "label": "Answers",
+          "was": 377,
+          "now": 377
+        },
+        {
+          "label": "Videos",
+          "was": 108,
+          "now": 103
+        },
+        {
+          "label": "Museums listed",
+          "was": 20,
+          "now": 20
+        },
+        {
+          "label": "Museum pages",
+          "was": 2,
+          "now": 2
+        }
+      ],
+      "groups": [
+        {
+          "area": "Answers",
+          "changes": [
+            {
+              "sha": "1d97da9",
+              "summary": "Seed refresh: control room and bridge videos, lost-boat histories"
+            },
+            {
+              "sha": "a193764",
+              "summary": "Seed refresh: FAQ videos, library deletions and grants"
+            }
+          ]
+        },
+        {
+          "area": "Museum pages",
+          "changes": [
+            {
+              "sha": "aac516b",
+              "summary": "Museum pages offer their FAQs' videos"
+            },
+            {
+              "sha": "3be8b72",
+              "summary": "Videos: rights notes stay off the public pages"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "week_ending": "2026-11-06",
       "from": "2026-10-30",
       "to": "2026-11-06",
