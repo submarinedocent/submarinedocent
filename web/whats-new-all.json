@@ -4,10 +4,37 @@
       "week_ending": "2026-11-20",
       "from": "2026-11-13",
       "to": "2026-11-20",
-      "generated": "2026-11-19T07:07:23-08:00",
-      "commits_total": 18,
-      "commits_listed": 3,
+      "generated": "2026-11-19T07:21:09-08:00",
+      "commits_total": 21,
+      "commits_listed": 2,
       "commits": [
+        {
+          "sha": "3418b9e",
+          "summary": "What's New: wording for the week ending 2026-11-20",
+          "date": "2026-11-19T07:21:08-08:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "5023946",
+          "summary": "What's New: \"say\" overrides put visitor wording on the public page",
+          "date": "2026-11-19T07:21:08-08:00",
+          "area": "",
+          "files": 4,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "4d61a82",
+          "summary": "What's New: week ending 2026-11-20, rebuilt",
+          "date": "2026-11-19T07:07:23-08:00",
+          "area": "Pages and layout",
+          "files": 2,
+          "public": false,
+          "reason": "an editing screen, not a visitor page"
+        },
         {
           "sha": "75c4620",
           "summary": "What's New: hide the rights-notes commit",
@@ -41,8 +68,8 @@
           "date": "2026-11-19T06:22:06-08:00",
           "area": "Answers",
           "files": 2,
-          "public": true,
-          "reason": ""
+          "public": false,
+          "reason": "Its visitor changes (faq_786 start, faq_783 caption) are covered by a193764's line; the lost-boat histories were already live."
         },
         {
           "sha": "4363176",
@@ -60,7 +87,10 @@
           "area": "Answers",
           "files": 3,
           "public": true,
-          "reason": ""
+          "reason": "",
+          "public_wording": [
+            "Short video clips now play under more than 70 answers, starting at the moment that answers the question."
+          ]
         },
         {
           "sha": "aac516b",
@@ -69,7 +99,10 @@
           "area": "Museum pages",
           "files": 4,
           "public": true,
-          "reason": ""
+          "reason": "",
+          "public_wording": [
+            "Museum pages now show their answers' videos."
+          ]
         },
         {
           "sha": "a5f68cb",

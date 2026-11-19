@@ -4,9 +4,9 @@
       "week_ending": "2026-11-20",
       "from": "2026-11-13",
       "to": "2026-11-20",
-      "generated": "2026-11-19T07:07:23-08:00",
-      "commits_total": 18,
-      "commits_listed": 3,
+      "generated": "2026-11-19T07:21:09-08:00",
+      "commits_total": 21,
+      "commits_listed": 2,
       "totals": [
         {
           "label": "Answers",
@@ -34,12 +34,8 @@
           "area": "Answers",
           "changes": [
             {
-              "sha": "1d97da9",
-              "summary": "Seed refresh: control room and bridge videos, lost-boat histories"
-            },
-            {
               "sha": "a193764",
-              "summary": "Seed refresh: FAQ videos, library deletions and grants"
+              "summary": "Short video clips now play under more than 70 answers, starting at the moment that answers the question."
             }
           ]
         },
@@ -48,7 +44,7 @@
           "changes": [
             {
               "sha": "aac516b",
-              "summary": "Museum pages offer their FAQs' videos"
+              "summary": "Museum pages now show their answers' videos."
             }
           ]
         }
