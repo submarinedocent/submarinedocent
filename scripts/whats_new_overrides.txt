@@ -25,3 +25,4 @@ show 1b955d5  Pages and layout  Pages had been cached for hours; changes now app
 hide 560b0b1  The FAQ editor's video picker is an editing screen; the videos visitors see arrived with the seed refreshes.
 hide 2af1c6f  The video library page is an editing screen.
 hide f98260a  Removed rights notes from the repository seed only; no visitor page showed them.
+hide 3be8b72  Rights notes are kept privately by the project (Irving, 19 Nov); not visitor news.
