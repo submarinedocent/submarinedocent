@@ -461,6 +461,52 @@
 
     .museum-body .faq-answer a[href] { color: #58a6ff; }
 
+    /* A FAQ's video: the faqs.html block in this page's colours. */
+    .faq-video {
+      margin-top: 14px;
+      max-width: 640px;
+    }
+
+    .faq-video iframe {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border: 0;
+      border-radius: 6px;
+      background: #000;
+      display: block;
+    }
+
+    .faq-video-play {
+      width: 100%;
+      padding: 10px 12px;
+      font: inherit;
+      font-size: 14px;
+      color: #c9d1d9;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .faq-video-play:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: #58a6ff;
+    }
+
+    .museum-body .faq-video-caption {
+      margin-top: 6px;
+      font-size: 13px;
+      line-height: 1.45;
+      color: #8b949e;
+    }
+
+    .museum-body .faq-video-credit {
+      margin-top: 3px;
+      font-size: 11px;
+      color: #6e7681;
+    }
+
     .detail-breadcrumb {
       display: flex;
       flex-wrap: wrap;
@@ -1478,8 +1524,45 @@
               <span class="faq-q-text">${esc(f.title)}</span>
               <span class="faq-chevron">&#9654;</span>
             </div>
-            <div class="faq-answer">${f.answer || ''}</div>
+            <div class="faq-answer">${f.answer || ''}${faqVideoHtml(f.video)}</div>
           </div>`).join('');
+    }
+
+    // A FAQ's video, as faqs.html offers it: a button, not an eager iframe, so
+    // listing every entry on the boat requests nothing from the video host
+    // until a visitor asks for one.
+    function faqVideoHtml(video) {
+      if (!video || !video.embed_url) return '';
+      const caption = video.caption
+        ? `<div class="faq-video-caption">${esc(video.caption)}</div>`
+        : '';
+      // Verbatim: a rights holder's required wording is not ours to prefix.
+      const creditInner = video.credit_url
+        ? `<a href="${esc(video.credit_url)}" target="_blank" rel="noopener noreferrer">${esc(video.credit)}</a>`
+        : esc(video.credit);
+      const credit = video.credit ? `<div class="faq-video-credit">${creditInner}</div>` : '';
+      return `<div class="faq-video" data-embed="${esc(video.embed_url)}">`
+        + `<button type="button" class="faq-video-play">&#9654;&nbsp; Watch this account</button>`
+        + `${caption}${credit}</div>`;
+    }
+
+    function wireFaqVideo(item) {
+      const holder = item.querySelector('.faq-video');
+      if (!holder) return;
+      const btn = holder.querySelector('.faq-video-play');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const src = holder.getAttribute('data-embed');
+        btn.remove();
+        const frame = document.createElement('iframe');
+        frame.src = src + (src.indexOf('?') !== -1 ? '&' : '?') + 'autoplay=1';
+        frame.title = holder.querySelector('.faq-video-caption')?.textContent || 'Video';
+        frame.loading = 'lazy';
+        frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+        frame.referrerPolicy = 'strict-origin-when-cross-origin';
+        frame.setAttribute('allowfullscreen', '');
+        holder.insertBefore(frame, holder.firstChild);
+      });
     }
 
     // Compartment Tours only: this section is the boat's walkthrough, in the
@@ -1583,6 +1666,7 @@
           const open = item.classList.toggle('open');
           q.setAttribute('aria-expanded', String(open));
         });
+        wireFaqVideo(item);
       });
       wireMuseumVideos();
     }

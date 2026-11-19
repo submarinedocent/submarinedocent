@@ -125,6 +125,10 @@ def main():
     scoped = next(e for e in m.FAQ_ALL if e["chunk_id"].startswith("faq_") and e.get("museum_id"))
     sid, museum = scoped["chunk_id"], scoped["museum_id"]
     client.put(f"/admin/faq/{sid}", json={"video_id": video["id"]}, headers=auth)
+    # The museum page lists its entries from this view and offers each one's video.
+    museum_view = [f for g in client.get(f"/api/faqs?museum_id={museum}").json() for f in g["faqs"]]
+    mv = next((f["video"] for f in museum_view if f["id"] == sid), "missing")
+    check("museum page's list carries the video", isinstance(mv, dict) and yt in mv["embed_url"], repr(mv))
     r = client.put(f"/admin/faq/{sid}", json={"video_id": ""}, headers=auth)
     rec = stored(sid)
     check("empty video_id removes the video", r.status_code == 200 and not any(

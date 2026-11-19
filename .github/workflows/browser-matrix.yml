@@ -3,6 +3,7 @@ name: Lost Boats editor in each browser
 # The photo-slot scenarios in _test/browser, in each engine on Linux and in
 # Chromium and Firefox on Windows, where the site's editor works.  A real operating-system
 # file drag is not covered: Playwright cannot make one, so a person checks it.
+# Also: a museum page offers its FAQs' videos, at a phone and a desktop width.
 on:
   push:
   pull_request:
@@ -41,3 +42,6 @@ jobs:
 
       - name: Photo slots move, swap, upload and remove
         run: python _test/browser/run.py --browser ${{ matrix.browser }}
+
+      - name: Museum page offers its FAQs' videos
+        run: python _test/browser/museum_faq_video.py --browser ${{ matrix.browser }}
