@@ -3,7 +3,7 @@ import base64
 from datetime import date as _date
 from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 import hashlib
 import html
@@ -698,12 +698,28 @@ def _compact_ask_log() -> None:
     os.replace(tmp, ASK_LOG_PATH)
 
 
+# A visitor sometimes types contact details into a question ("email me at ...").
+# The log keeps the question, not the person, so these are replaced before the
+# line is written.  Phone numbers are matched only in shapes no history question
+# uses: ten-digit North American numbers and "+" international ones, so hull
+# numbers (SS-383), years (1941-1945) and tonnages stay intact.
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+_PHONE_RE = re.compile(
+    r"(?<![\w+])(?:\+\d[\d\s().-]{7,18}\d"
+    r"|(?:1[\s.-]?)?(?:\(\d{3}\)\s?|\d{3}[\s.-]?)\d{3}[\s.-]?\d{4})(?!\w)"
+)
+
+
+def _redact_contact(text: str) -> str:
+    return _PHONE_RE.sub("[phone]", _EMAIL_RE.sub("[email]", text))
+
+
 def _append_ask_log(q: str, faq_id: Optional[str], museum_id: str,
                     extra: Optional[Dict[str, Any]] = None) -> None:
     import datetime
     global _ask_log_last_compact
     today = datetime.date.today().isoformat()
-    entry = {"q": q[:500], "faq_id": faq_id, "museum_id": museum_id, "date": today}
+    entry = {"q": _redact_contact(q[:500]), "faq_id": faq_id, "museum_id": museum_id, "date": today}
     entry.update(extra or {})
     line = json.dumps(entry, ensure_ascii=False)
     try:
@@ -6755,9 +6771,54 @@ def ask(request: Request, payload: dict):
         elif result.get("faq_id"):
             _append_ask_log(question, result.get("faq_id"), museum_id, {"via": via})
         else:
+            # No record answered, so the text was assembled from the
+            # question's words (manual sentences, a second source appended)
+            # and cannot be rebuilt from an id later: keep what was said.  A
+            # record's answer is its own text, the same for every question, so
+            # those lines carry only the id.
             cite = (result.get("citations") or [{}])[0]
-            _append_ask_log(question, None, museum_id, {"source_id": cite.get("chunk_id"), "via": via})
+            _append_ask_log(question, None, museum_id, {"source_id": cite.get("chunk_id"), "via": via,
+                                                        "answer": result.get("answer_short") or ""})
     return result
+
+
+# The daily review reads the question log with its own key, not the admin
+# password: a script holding it can read recent questions and nothing else.
+# The key arrives in a header, never the query string, which proxies log.
+ASKLOG_KEY = os.getenv("ASKLOG_KEY", "").strip()
+
+
+@app.get("/asklog/recent")
+def ask_log_recent(request: Request):
+    """Question-log lines dated today or yesterday (server date, UTC).
+
+    The log keeps the day, not the time, so this is the last 24 hours and up
+    to 24 more.  Read-only.
+    """
+    import datetime
+    import hmac
+    if not ASKLOG_KEY:
+        return JSONResponse({"detail": "Question-log access is disabled. Set ASKLOG_KEY to enable it."},
+                            status_code=503, headers={"Cache-Control": "no-store"})
+    given = request.headers.get("x-asklog-key", "")
+    if not hmac.compare_digest(given.encode(), ASKLOG_KEY.encode()):
+        return JSONResponse({"detail": "Wrong or missing X-AskLog-Key."}, status_code=401,
+                            headers={"Cache-Control": "no-store"})
+    today = datetime.date.today()
+    since = (today - datetime.timedelta(days=1)).isoformat()
+    lines: List[Dict[str, Any]] = []
+    if os.path.exists(ASK_LOG_PATH):
+        with _ask_log_lock:
+            raw_lines = open(ASK_LOG_PATH, "r", encoding="utf-8").read().splitlines()
+        for raw in raw_lines:
+            try:
+                rec = json.loads(raw)
+            except Exception:
+                continue
+            if str(rec.get("date", "")) >= since:
+                lines.append(rec)
+    return JSONResponse({"from": since, "to": today.isoformat(), "count": len(lines), "entries": lines},
+                        headers={"Cache-Control": "no-store"})
 
 
 @app.get("/admin/ask-log")
