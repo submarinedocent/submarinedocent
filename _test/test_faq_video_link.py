@@ -4,8 +4,8 @@
 The FAQ stores video_id, and its own start time and caption.  The library
 supplies the address, credit and rights each time the video is shown, so a
 rights change there reaches every answer that plays the video.  A FAQ that
-carries its own copy of a video (faq_1088, from before the library link) keeps
-working until someone replaces it.
+carries its own copy of a video (as faq_1088 did, from before the library link)
+keeps working until someone replaces it.
 
     python3 _test/test_faq_video_link.py
 
@@ -38,9 +38,18 @@ def main():
     shutil.copytree(os.path.join(REPO, "corpora"), corpora)
     # The seed holds no drafts, so the test brings one: a video must not attach
     # to a draft until it is accepted.
+    # It also brings a record carrying its own copy of a video, the form faq_1088
+    # had until 16 November 2026, which the seed no longer holds.
+    with open(os.path.join(corpora, "videos.jsonl")) as fh:
+        decker_row = next(r for r in map(json.loads, filter(str.strip, fh))
+                          if "clay_decker_escaping" in r.get("video_url", ""))
     with open(os.path.join(corpora, "dieselsubs_faq_corpus.jsonl"), "a") as fh:
         fh.write(json.dumps({"chunk_id": "der_video_fixture", "title": "A draft question?",
                              "text": "<p>A draft answer.</p>", "source": "test_fixture"}) + "\n")
+        fh.write(json.dumps({"chunk_id": "faq_video_copy_fixture", "title": "A question with its own video copy?",
+                             "text": "<p>An answer.</p>", "source": "test_fixture",
+                             "video_url": decker_row["video_url"], "video_credit": decker_row.get("video_credit", ""),
+                             "rights_status": "granted"}) + "\n")
     os.environ["ADMIN_USERNAME"] = "t"
     os.environ["ADMIN_PASSWORD"] = "t"
     sys.path.insert(0, REPO)
@@ -79,7 +88,9 @@ def main():
     video = next(v for v in library if "youtube" in v.get("video_url", "") and m._rights_cleared(v))
     yt = m._YT_ID_RE.search(video["video_url"]).group(1)
 
-    target = next(e for e in m.FAQ_ALL if e["chunk_id"] == "faq_1094")
+    # Any answerable record that has no video yet and belongs to no museum.
+    target = next(e for e in m.FAQ_ALL if e["chunk_id"].startswith("faq_") and not e.get("museum_id")
+                  and not any(e.get(k) for k in ("video_id", "video_url")))
     cid, title = target["chunk_id"], target["title"]
     check("target starts with no video", page_video(cid) is None and ask_video(title) is None)
 
@@ -154,12 +165,12 @@ def main():
     check("empty video_url clears a library video too", r.status_code == 200 and "video_id" not in rec, repr(rec.get("video_id")))
     check("and keeps the museum scope", rec.get("museum_id") == museum, repr(rec.get("museum_id")))
 
-    old = page_video("faq_1088")
-    check("faq_1088's own copy of its video still plays", bool(old) and "clay_decker" in old["embed_url"], repr(old))
+    old = page_video("faq_video_copy_fixture")
+    check("a record's own copy of its video still plays", bool(old) and "clay_decker" in old["embed_url"], repr(old))
     decker = next(row for row in library if "clay_decker_escaping" in row.get("video_url", ""))
-    client.put("/admin/faq/faq_1088", json={"video_id": decker["id"]}, headers=auth)
-    rec = stored("faq_1088")
-    new = page_video("faq_1088")
+    client.put("/admin/faq/faq_video_copy_fixture", json={"video_id": decker["id"]}, headers=auth)
+    rec = stored("faq_video_copy_fixture")
+    new = page_video("faq_video_copy_fixture")
     check("choosing a library video replaces the copy",
           rec.get("video_id") == decker["id"] and "video_url" not in rec and "rights_status" not in rec)
     check("and the same video still plays", bool(new) and new["embed_url"] == old["embed_url"], repr(new))
