@@ -4,10 +4,37 @@
       "week_ending": "2026-11-20",
       "from": "2026-11-13",
       "to": "2026-11-20",
-      "generated": "2026-11-19T07:04:37-08:00",
-      "commits_total": 15,
-      "commits_listed": 4,
+      "generated": "2026-11-19T07:07:23-08:00",
+      "commits_total": 18,
+      "commits_listed": 3,
       "commits": [
+        {
+          "sha": "75c4620",
+          "summary": "What's New: hide the rights-notes commit",
+          "date": "2026-11-19T07:07:22-08:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "a69de64",
+          "summary": "What's New: week ending 2026-11-20",
+          "date": "2026-11-19T07:04:45-08:00",
+          "area": "Pages and layout",
+          "files": 2,
+          "public": false,
+          "reason": "an editing screen, not a visitor page"
+        },
+        {
+          "sha": "1d72ba5",
+          "summary": "What's New: hide two editor commits and a seed-only one",
+          "date": "2026-11-19T07:04:45-08:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
         {
           "sha": "1d97da9",
           "summary": "Seed refresh: control room and bridge videos, lost-boat histories",
@@ -77,8 +104,8 @@
           "date": "2026-11-16T09:20:38-08:00",
           "area": "Museum pages",
           "files": 6,
-          "public": true,
-          "reason": ""
+          "public": false,
+          "reason": "Rights notes are kept privately by the project (Irving, 19 Nov); not visitor news."
         },
         {
           "sha": "3b58cf1",

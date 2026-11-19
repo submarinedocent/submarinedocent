@@ -4,9 +4,9 @@
       "week_ending": "2026-11-20",
       "from": "2026-11-13",
       "to": "2026-11-20",
-      "generated": "2026-11-19T07:04:37-08:00",
-      "commits_total": 15,
-      "commits_listed": 4,
+      "generated": "2026-11-19T07:07:23-08:00",
+      "commits_total": 18,
+      "commits_listed": 3,
       "totals": [
         {
           "label": "Answers",
@@ -49,10 +49,6 @@
             {
               "sha": "aac516b",
               "summary": "Museum pages offer their FAQs' videos"
-            },
-            {
-              "sha": "3be8b72",
-              "summary": "Videos: rights notes stay off the public pages"
             }
           ]
         }
