@@ -22,3 +22,6 @@ hide b79af67  The photograph was already live; this only added it to the reposit
 
 show 1982caa  Answers  Removing the tour corpus changed which source answers came from.
 show 1b955d5  Pages and layout  Pages had been cached for hours; changes now appear on the next visit.
+hide 560b0b1  The FAQ editor's video picker is an editing screen; the videos visitors see arrived with the seed refreshes.
+hide 2af1c6f  The video library page is an editing screen.
+hide f98260a  Removed rights notes from the repository seed only; no visitor page showed them.
