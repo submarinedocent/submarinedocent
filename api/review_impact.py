@@ -2,11 +2,11 @@
 
     python -m api.review_impact job.json out.json
 
-job.json carries a fix, the item id, the item's wordings and the FAQ file the
-server writes.  This loads the app from that same file, answers every FAQ title,
-every phrasing, every golden visitor question and the item's wordings, applies
-the fix in memory through the same code a real apply uses (api.main._review_write
-with the save kept in memory), recomputes the corpus statistics as a restart
+job.json carries the ticked fixes in order, the card's id, its wordings and the
+FAQ file the server writes.  This loads the app from that same file, answers every FAQ title,
+every phrasing, every golden visitor question and the card's wordings, applies
+the fixes in memory, in order, through the same code a real apply uses
+(api.main._review_write with the save kept in memory), recomputes the corpus statistics as a restart
 would, and answers them all again.  out.json says what moved.
 
 Why a separate process: retrieval reads module globals (FAQ, the BM25
@@ -45,9 +45,10 @@ def _questions(m, job):
                 if line.strip():
                     add(json.loads(line)["question"], "golden")
     for w in job.get("wordings") or []:
-        add(w, "this item")
-    if job["fix"]["type"] == "point_to_faq":
-        add(job["fix"]["phrasing"], "this item")
+        add(w, "this card")
+    for fix in job["fixes"]:
+        if fix["type"] == "point_to_faq":
+            add(fix["phrasing"], "this card")
     return list(rows.items())
 
 
@@ -103,23 +104,23 @@ def main(job_path, out_path):
         m.FAQ = m._retrievable_faq(m.FAQ_ALL)
 
     m._save_faq_corpus = save_in_memory
-    m._review_write(job["fix"], job["item_id"])
+    for fix in job["fixes"]:
+        m._review_write(fix, job["item_id"])
     m._avg_chunk_tokens = None          # statistics as the next restart builds them
     after = {q: _answer(m, q) for q, _ in questions}
 
-    fix = job["fix"]
-    own = {q for q, kinds in questions if "this item" in kinds}
+    own = {q for q, kinds in questions if "this card" in kinds}
     moved = [{"question": q, "kinds": kinds, "before": before[q], "after": after[q]}
              for q, kinds in questions if q not in own and before[q] != after[q]]
-    target = None
-    if fix["type"] == "point_to_faq":
-        target = {"question": fix["phrasing"], "faq_id": fix["faq_id"],
-                  "before": before[fix["phrasing"]], "after": after[fix["phrasing"]],
-                  "ok": after[fix["phrasing"]] == fix["faq_id"],
-                  "wordings": [{"question": q, "before": before[q], "after": after[q]}
-                               for q in sorted(own) if q != fix["phrasing"]]}
+    # Each point-to-FAQ fix must land its phrasing on its record.
+    targets = [{"fix_id": fix["id"], "question": fix["phrasing"], "faq_id": fix["faq_id"],
+                "before": before[fix["phrasing"]], "after": after[fix["phrasing"]],
+                "ok": after[fix["phrasing"]] == fix["faq_id"]}
+               for fix in job["fixes"] if fix["type"] == "point_to_faq"]
+    wordings = [{"question": q, "before": before[q], "after": after[q]}
+                for q in sorted(own) if q not in {t["question"] for t in targets}]
     golden_before, golden_after = _golden_score(m, before), _golden_score(m, after)
-    result = {"checked": len(questions), "moved": moved, "target": target,
+    result = {"checked": len(questions), "moved": moved, "targets": targets, "wordings": wordings,
               "golden": ({"before": golden_before[0], "after": golden_after[0], "total": golden_before[1]}
                          if golden_before else None),
               "seconds": round(time.time() - started, 1)}

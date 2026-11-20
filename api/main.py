@@ -6845,14 +6845,19 @@ def ask_log_recent(request: Request, date: Optional[str] = None):
 
 # ── Answer review ────────────────────────────────────────────────────────────
 # The daily review of the question log posts what it found to
-# /answer-review/items, and an admin applies each fix from
+# /answer-review/items, and an admin applies fixes from
 # web/edit_answer_review.html.  The review's key can only add items: it cannot
 # read them, apply one or touch a record.  Everything else is under /admin/ and
-# the admin password.  An apply re-checks that the fix still fits, measures in a
-# separate process what every FAQ title, phrasing and golden question would
-# answer after it (api/review_impact.py), writes only if nothing else moves or
-# an admin overrides with their initials, backs up the corpus file first and
-# keeps the record before and after, so each apply can be undone.
+# the admin password.
+#
+# One card per question, carrying every fix the review suggested for it.  An
+# admin ticks the fixes to apply; the rest are recorded as not chosen.  An apply
+# checks that the ticked fixes still fit, in order, each against the records as
+# the ones before it leave them; measures in a separate process what every FAQ
+# title, phrasing and golden question would answer after all of them
+# (api/review_impact.py); writes only if nothing else moves or an admin
+# overrides with initials; backs up the FAQ file first and keeps each changed
+# record before and after, so the apply can be undone.
 ANSWER_REVIEW_KEY = os.getenv("ANSWER_REVIEW_KEY", "").strip()
 # Visitor questions: the persistent disk in production, the repo root locally,
 # never corpora/ (refresh_seed.py's NEVER_SEED lists it too).
@@ -6873,11 +6878,15 @@ _answer_review_lock = threading.RLock()
 
 _REVIEW_MAX_BODY = 200_000
 _REVIEW_MAX_ITEMS = 50
+_REVIEW_MAX_FIXES = 10
 _REVIEW_MAX_CHARS = 2000
 _REVIEW_MAX_WORDINGS = 20
 _REVIEW_OUTCOMES = {"record", "manual", "fallback", "refusal", "short_query"}
 _REVIEW_CATEGORIES = {"wrong_answer", "no_answer", "partial_answer", "typo", "wording", "factual"}
 _REVIEW_FIX_TYPES = {"point_to_faq", "text_edit", "new_faq", "factual"}
+# What a fix is, as opposed to what is said about it.  Two fixes with the same
+# core are the same fix, whatever reason accompanies them.
+_REVIEW_FIX_META = ("id", "status", "category", "reason", "original")
 _REVIEW_HTML_RE = re.compile(r"<\s*[A-Za-z/!]")
 _REVIEW_DRAFT_TEXT = "Answer to be written."
 _REVIEW_CHECK_TIMEOUT = 900
@@ -6918,8 +6927,8 @@ def _review_text(value: Any, field: str, required: bool = True, limit: int = _RE
     return _redact_contact(value) if redact else value
 
 
-def _review_record(chunk_id: str) -> Optional[Dict[str, Any]]:
-    return next((e for e in FAQ_ALL if e.get("chunk_id") == chunk_id), None)
+def _review_record(chunk_id: str, records: Optional[List[Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
+    return next((e for e in (FAQ_ALL if records is None else records) if e.get("chunk_id") == chunk_id), None)
 
 
 def _review_answerable_id(value: Any, field: str) -> str:
@@ -6945,10 +6954,18 @@ def _review_quoted(text: str, start: int, end: int) -> bool:
     return any(s < end and start < e for s, e in spans)
 
 
+def _review_fix_core(fix: Dict[str, Any]) -> Dict[str, Any]:
+    return {k: v for k, v in fix.items() if k not in _REVIEW_FIX_META}
+
+
+def _review_fix_key(fix: Dict[str, Any]) -> str:
+    return json.dumps(_review_fix_core(fix), sort_keys=True)
+
+
 def _review_clean_fix(raw: Any, question: str) -> Dict[str, Any]:
-    """The fix in its stored shape, or _ReviewError."""
+    """A fix's core in its stored shape, or _ReviewError."""
     if not isinstance(raw, dict):
-        raise _ReviewError("fix must be an object")
+        raise _ReviewError("each fix must be an object")
     kind = raw.get("type")
     if kind not in _REVIEW_FIX_TYPES:
         raise _ReviewError(f"fix.type must be one of: {', '.join(sorted(_REVIEW_FIX_TYPES))}")
@@ -6974,13 +6991,13 @@ def _review_clean_fix(raw: Any, question: str) -> Dict[str, Any]:
         title = _review_text(raw.get("title"), "fix.title", limit=300)
         if _EM_DASH in title:
             raise _ReviewError("fix.title has an em dash; the site carries none")
-        category = _review_text(raw.get("category"), "fix.category", required=False, limit=200)
+        category = _review_text(raw.get("category_title"), "fix.category_title", required=False, limit=200)
         if category and category not in _known_category_titles():
-            raise _ReviewError(f"fix.category {category!r} is not a category")
+            raise _ReviewError(f"fix.category_title {category!r} is not a category")
         fix = {"type": kind, "title": title,
                "note": _review_text(raw.get("note"), "fix.note", required=False)}
         if category:
-            fix["category"] = category
+            fix["category_title"] = category
         return fix
     return {"type": kind,
             "faq_id": _review_answerable_id(raw.get("faq_id"), "fix.faq_id"),
@@ -6989,7 +7006,9 @@ def _review_clean_fix(raw: Any, question: str) -> Dict[str, Any]:
             "source": _review_text(raw.get("source"), "fix.source", required=False)}
 
 
-def _review_clean_item(raw: Any, review_date: str) -> Dict[str, Any]:
+def _review_clean_item(raw: Any) -> Dict[str, Any]:
+    """An item's question and context; its fixes are cleaned one by one so a
+    bad fix does not cost the item its good ones."""
     if not isinstance(raw, dict):
         raise _ReviewError("each item must be an object")
     question = _review_text(raw.get("question"), "question", limit=500)
@@ -7004,22 +7023,38 @@ def _review_clean_item(raw: Any, review_date: str) -> Dict[str, Any]:
     for field in ("faq_id", "source_id"):
         if got.get(field):
             got_clean[field] = _review_text(got.get(field), f"got.{field}", limit=80)
+    fixes = raw.get("fixes")
+    if not isinstance(fixes, list) or not 1 <= len(fixes) <= _REVIEW_MAX_FIXES:
+        raise _ReviewError(f"fixes must be a list of 1 to {_REVIEW_MAX_FIXES}")
+    return {"question": question, "wordings": wordings, "got": got_clean, "fixes": fixes}
+
+
+def _review_clean_fix_entry(raw: Any, question: str) -> Dict[str, Any]:
+    """A fix as the review sent it: its core, plus its own problem and Why."""
+    if not isinstance(raw, dict):
+        raise _ReviewError("each fix must be an object")
     category = raw.get("category")
     if category not in _REVIEW_CATEGORIES:
         raise _ReviewError(f"category must be one of: {', '.join(sorted(_REVIEW_CATEGORIES))}")
-    return {"question": question, "wordings": wordings, "got": got_clean, "category": category,
-            "reason": _review_text(raw.get("reason"), "reason", required=False),
-            "fix": _review_clean_fix(raw.get("fix"), question), "review_dates": [review_date]}
+    fix = _review_clean_fix(raw, question)
+    fix["category"] = category
+    fix["reason"] = _review_text(raw.get("reason"), "reason", required=False)
+    reason = _review_fits(fix)
+    if reason:
+        raise _ReviewError(reason)
+    return fix
 
 
-def _review_fits(fix: Dict[str, Any]) -> Optional[str]:
-    """Why the fix no longer fits the records as they are now, or None."""
+def _review_fits(fix: Dict[str, Any], records: Optional[List[Dict[str, Any]]] = None) -> Optional[str]:
+    """Why the fix does not fit the records (the live ones, or a simulated
+    copy), or None.  Never changes them."""
+    records = FAQ_ALL if records is None else records
     kind = fix["type"]
     if kind == "new_faq":
         want = _review_norm(fix["title"])
-        clash = next((e for e in FAQ_ALL if _review_norm(e.get("title") or "") == want), None)
+        clash = next((e for e in records if _review_norm(e.get("title") or "") == want), None)
         return f"{clash['chunk_id']} already has this title" if clash else None
-    rec = _review_record(fix["faq_id"])
+    rec = _review_record(fix["faq_id"], records)
     if rec is None:
         return f"{fix['faq_id']} no longer exists"
     if kind == "point_to_faq":
@@ -7027,7 +7062,9 @@ def _review_fits(fix: Dict[str, Any]) -> Optional[str]:
         if len(have) >= PHRASINGS_MAX:
             return f"{fix['faq_id']} already has the most phrasings a record may carry ({PHRASINGS_MAX})"
         want = _review_norm(fix["phrasing"])
-        for e in FAQ:
+        for e in records:
+            if not str(e.get("chunk_id", "")).startswith(_ANSWERABLE_FAQ_PREFIXES):
+                continue
             for wording in [e.get("title") or ""] + _record_phrasings(e):
                 if _review_norm(wording) == want:
                     return f"{e['chunk_id']} already carries this wording"
@@ -7042,9 +7079,9 @@ def _review_fits(fix: Dict[str, Any]) -> Optional[str]:
     if count > 1:
         return f"the text appears {count} times in {fix['faq_id']}; make it unique"
     start = value.index(old)
-    if kind == "text_edit" and fix["field"] == "title":
+    if fix["field"] == "title":
         want = _review_norm(value.replace(old, fix["new"], 1))
-        clash = next((e for e in FAQ_ALL if e is not rec and _review_norm(e.get("title") or "") == want), None)
+        clash = next((e for e in records if e is not rec and _review_norm(e.get("title") or "") == want), None)
         if clash:
             return f"{clash['chunk_id']} already has that title"
     if _review_quoted(value, start, start + len(old)):
@@ -7053,16 +7090,40 @@ def _review_fits(fix: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _review_draft_id(item_id: str) -> str:
-    return "der_review_" + item_id.split("_", 1)[-1]
+def _review_draft_id(item_id: str, fix_id: str) -> str:
+    return f"der_review_{item_id.split('_', 1)[-1]}_{fix_id}"
 
 
 def _review_target_id(fix: Dict[str, Any], item_id: str) -> str:
-    return _review_draft_id(item_id) if fix["type"] == "new_faq" else fix["faq_id"]
+    return _review_draft_id(item_id, fix["id"]) if fix["type"] == "new_faq" else fix["faq_id"]
+
+
+def _review_simulate(fix: Dict[str, Any], records: List[Dict[str, Any]], item_id: str) -> None:
+    """What _review_write would do, on a copy, for checking the next fix."""
+    kind = fix["type"]
+    if kind == "new_faq":
+        records.append({"chunk_id": _review_draft_id(item_id, fix["id"]), "title": fix["title"]})
+        return
+    rec = _review_record(fix["faq_id"], records)
+    if kind == "point_to_faq":
+        rec["phrasings"] = list(rec.get("phrasings") or []) + [fix["phrasing"]]
+    elif kind == "text_edit":
+        rec[fix["field"]] = (rec.get(fix["field"]) or "").replace(fix["old"], fix["new"], 1)
+
+
+def _review_fits_all(fixes: List[Dict[str, Any]], item_id: str) -> Optional[str]:
+    """Why the fixes, applied in this order, do not fit, or None."""
+    records = json.loads(json.dumps(FAQ_ALL))
+    for n, fix in enumerate(fixes, 1):
+        reason = _review_fits(fix, records)
+        if reason:
+            return f"fix {n} of {len(fixes)}: {reason}" if len(fixes) > 1 else reason
+        _review_simulate(fix, records, item_id)
+    return None
 
 
 def _review_write(fix: Dict[str, Any], item_id: str) -> str:
-    """Make the change through the editor's own save code; return the record id.
+    """Make one change through the editor's own save code; return the record id.
 
     api/review_impact.py calls this too, with the save held in memory, so the
     check measures exactly the change a real apply makes."""
@@ -7077,11 +7138,11 @@ def _review_write(fix: Dict[str, Any], item_id: str) -> str:
         _update_faq_entry(fix["faq_id"], {fix["field"]: value.replace(fix["old"], fix["new"], 1)})
         return fix["faq_id"]
     if kind == "new_faq":
-        body = {"chunk_id": _review_draft_id(item_id), "title": fix["title"],
+        body = {"chunk_id": _review_draft_id(item_id, fix["id"]), "title": fix["title"],
                 "text": _REVIEW_DRAFT_TEXT, "source": "answer_review",
                 "review_for": "editor", "review_note": fix.get("note") or ""}
-        if fix.get("category"):
-            body["category"] = fix["category"]
+        if fix.get("category_title"):
+            body["category"] = fix["category_title"]
         return _create_faq_entry(body)["chunk_id"]
     raise _ReviewError("a possible factual error has no Apply; it is for the editor")
 
@@ -7089,6 +7150,22 @@ def _review_write(fix: Dict[str, Any], item_id: str) -> str:
 def _review_copy(chunk_id: str) -> Optional[Dict[str, Any]]:
     rec = _review_record(chunk_id)
     return json.loads(json.dumps(rec)) if rec is not None else None
+
+
+def _review_restore(changes: List[Dict[str, Any]], key: str) -> None:
+    """Put each changed record back to changes[i][key] (None: remove it)."""
+    with _faq_write_lock:
+        for change in reversed(changes):
+            at = next((n for n, e in enumerate(FAQ_ALL) if e.get("chunk_id") == change["chunk_id"]), None)
+            want = change[key]
+            if want is None:
+                if at is not None:
+                    FAQ_ALL.pop(at)
+            elif at is None:
+                FAQ_ALL.append(json.loads(json.dumps(want)))
+            else:
+                FAQ_ALL[at] = json.loads(json.dumps(want))
+        _save_faq_corpus()
 
 
 def _review_backup(tag: str) -> str:
@@ -7136,8 +7213,13 @@ def _review_update(item_id: str, change) -> Optional[Dict[str, Any]]:
         return item
 
 
-def _review_merge_key(question: str, fix: Dict[str, Any]) -> str:
-    return hashlib.sha1((_review_norm(question) + "\n" + json.dumps(fix, sort_keys=True)).encode()).hexdigest()
+def _review_is_open(item: Dict[str, Any]) -> bool:
+    """A card is open while a fix that can be applied is still open."""
+    return any(f["status"] == "open" and f["type"] != "factual" for f in item["fixes"])
+
+
+def _review_new_fix_id(item: Dict[str, Any]) -> str:
+    return f"f{1 + max([int(f['id'][1:]) for f in item['fixes']] or [0])}"
 
 
 @app.post("/answer-review/items")
@@ -7177,29 +7259,57 @@ async def answer_review_ingest(request: Request):
         store = _review_load()
         for index, raw_item in enumerate(items):
             try:
-                item = _review_clean_item(raw_item, review_date)
-                reason = _review_fits(item["fix"])
-                if reason:
-                    raise _ReviewError(reason)
+                item = _review_clean_item(raw_item)
             except _ReviewError as exc:
                 rejected.append({"index": index, "error": str(exc)})
                 continue
-            key = _review_merge_key(item["question"], item["fix"])
-            same = [s for s in store if s.get("merge_key") == key]
-            existing = next((s for s in same if s["status"] == "open"), None) or (same[-1] if same else None)
-            if existing is not None and existing["status"] == "open":
-                if review_date not in existing["review_dates"]:
-                    existing["review_dates"].append(review_date)
-                existing["wordings"] = list(dict.fromkeys(existing["wordings"] + item["wordings"]))[:_REVIEW_MAX_WORDINGS]
-                existing["updated"] = _review_now()
-                accepted.append({"index": index, "item_id": existing["id"], "status": "merged"})
-            elif existing is not None:
-                accepted.append({"index": index, "item_id": existing["id"], "status": "already_" + existing["status"]})
+            fixes = []
+            for fix_index, raw_fix in enumerate(item["fixes"]):
+                try:
+                    fixes.append((fix_index, _review_clean_fix_entry(raw_fix, item["question"])))
+                except _ReviewError as exc:
+                    rejected.append({"index": index, "fix_index": fix_index, "error": str(exc)})
+            if not fixes:
+                continue
+            same = [s for s in store if _review_norm(s["question"]) == _review_norm(item["question"])]
+            card = next((s for s in same if any(f["status"] == "open" for f in s["fixes"])), None)
+            # A fix an admin edited is still the review's fix: match either form.
+            seen = {}
+            for f in (f for s in same for f in s["fixes"]):
+                seen[_review_fix_key(f)] = f
+                if f.get("original"):
+                    seen[_review_fix_key(f["original"])] = f
+            fix_status = []
+            fresh = []
+            for fix_index, fix in fixes:
+                earlier = seen.get(_review_fix_key(fix))
+                if earlier is None:
+                    fresh.append((fix_index, fix))
+                elif earlier["status"] == "open":
+                    fix_status.append({"fix_index": fix_index, "fix_id": earlier["id"], "status": "merged"})
+                else:
+                    fix_status.append({"fix_index": fix_index, "fix_id": earlier["id"],
+                                       "status": "already_" + earlier["status"]})
+            if card is None and fresh:
+                card = {"id": "ar_" + secrets.token_hex(4), "question": item["question"],
+                        "wordings": item["wordings"], "got": item["got"], "review_dates": [review_date],
+                        "fixes": [], "created": _review_now(), "updated": _review_now(), "actions": []}
+                store.append(card)
+                status = "new"
+            elif card is not None:
+                status = "merged"
+                if review_date not in card["review_dates"]:
+                    card["review_dates"].append(review_date)
+                card["wordings"] = list(dict.fromkeys(card["wordings"] + item["wordings"]))[:_REVIEW_MAX_WORDINGS]
+                card["updated"] = _review_now()
             else:
-                item.update({"id": "ar_" + secrets.token_hex(4), "status": "open", "merge_key": key,
-                             "created": _review_now(), "updated": _review_now(), "actions": []})
-                store.append(item)
-                accepted.append({"index": index, "item_id": item["id"], "status": "new"})
+                status = "nothing_new"
+            for fix_index, fix in fresh:
+                fix = dict(fix, id=_review_new_fix_id(card), status="open")
+                card["fixes"].append(fix)
+                fix_status.append({"fix_index": fix_index, "fix_id": fix["id"], "status": "new"})
+            accepted.append({"index": index, "item_id": card["id"] if card else None, "status": status,
+                             "fixes": sorted(fix_status, key=lambda f: f["fix_index"])})
         _review_save(store)
     return JSONResponse({"accepted": accepted, "rejected": rejected}, headers=headers)
 
@@ -7238,21 +7348,11 @@ def _review_context(text: str, start: int, end: int, width: int = 160) -> Dict[s
     return {"text": pre + mid + post, "mark": [len(pre), len(pre) + len(mid)]}
 
 
-def _review_view(item: Dict[str, Any], counts: Dict[Tuple[str, str], int]) -> Dict[str, Any]:
-    """An item as the page shows it, with everything looked up fresh."""
-    view = {k: v for k, v in item.items() if k != "merge_key"}
-    wordings = {_review_norm(w) for w in item["wordings"]}
-    latest = max(item["review_dates"])
-    view["asked"] = {"date": latest,
-                     "on_date": sum(n for (q, d), n in counts.items() if q in wordings and d == latest),
-                     "total": sum(n for (q, d), n in counts.items() if q in wordings)}
-    got_id = item["got"].get("faq_id")
-    if got_id and _review_record(got_id):
-        view["got_title"] = _review_record(got_id).get("title")
-    fix = item["fix"]
+def _review_fix_view(item: Dict[str, Any], fix: Dict[str, Any]) -> Dict[str, Any]:
+    view = dict(fix)
     if fix.get("faq_id") and _review_record(fix["faq_id"]):
         view["target_title"] = _review_record(fix["faq_id"]).get("title")
-    if item["status"] == "open" and fix["type"] != "factual":
+    if fix["status"] == "open" and fix["type"] != "factual":
         view["fits"] = _review_fits(fix)
     if fix["type"] == "text_edit" and _review_record(fix["faq_id"]):
         value = _review_record(fix["faq_id"]).get(fix["field"]) or ""
@@ -7261,14 +7361,45 @@ def _review_view(item: Dict[str, Any], counts: Dict[Tuple[str, str], int]) -> Di
             after = value[:at] + fix["new"] + value[at + len(fix["old"]):]
             view["before"] = _review_context(value, at, at + len(fix["old"]))
             view["after"] = _review_context(after, at, at + len(fix["new"]))
+    if fix["type"] == "new_faq" and fix["status"] == "applied":
+        chunk_id = _review_draft_id(item["id"], fix["id"])
+        draft = _review_record(chunk_id)
+        view["draft"] = {"chunk_id": chunk_id, "exists": draft is not None,
+                         "written": bool(draft) and (draft.get("text") or "").strip() != _REVIEW_DRAFT_TEXT}
+    return view
+
+
+def _review_view(item: Dict[str, Any], counts: Dict[Tuple[str, str], int]) -> Dict[str, Any]:
+    """A card as the page shows it, with everything looked up fresh."""
+    view = dict(item)
+    wordings = {_review_norm(w) for w in item["wordings"]}
+    latest = max(item["review_dates"])
+    view["asked"] = {"date": latest,
+                     "on_date": sum(n for (q, d), n in counts.items() if q in wordings and d == latest),
+                     "total": sum(n for (q, d), n in counts.items() if q in wordings)}
+    got_id = item["got"].get("faq_id")
+    if got_id and _review_record(got_id):
+        view["got_title"] = _review_record(got_id).get("title")
+    view["fixes"] = [_review_fix_view(item, f) for f in item["fixes"]]
+    view["open"] = _review_is_open(item)
+    view["for_editor"] = any(
+        (f["type"] == "factual" and f["status"] == "open")
+        or ("draft" in f and f["draft"]["exists"] and not f["draft"]["written"]) for f in view["fixes"])
     check = item.get("check") or {}
     if check.get("state") == "checking" and time.time() - check.get("started_epoch", 0) > _REVIEW_STALE_CHECK:
         view["check"] = dict(check, state="failed", error="The check was cut off, probably by a restart. Apply again.")
-    if fix["type"] == "new_faq" and item["status"] == "applied":
-        draft = _review_record(_review_draft_id(item["id"]))
-        view["draft"] = {"chunk_id": _review_draft_id(item["id"]), "exists": draft is not None,
-                         "written": bool(draft) and (draft.get("text") or "").strip() != _REVIEW_DRAFT_TEXT}
     return view
+
+
+def _review_undoable(item: Dict[str, Any]) -> Optional[int]:
+    """Index of the apply Undo would reverse: the card's last, if not undone."""
+    for n in range(len(item.get("actions") or []) - 1, -1, -1):
+        action = item["actions"][n]
+        if action["action"] == "undone":
+            return None
+        if action["action"] == "applied":
+            return n
+    return None
 
 
 @app.get("/admin/answer-review")
@@ -7277,20 +7408,15 @@ def answer_review_list():
         items = _review_load()
     counts = _review_ask_counts()
     views = [_review_view(i, counts) for i in items]
-    is_open = lambda v: v["status"] == "open"
-    for_editor = lambda v: v["fix"]["type"] == "factual" or ("draft" in v and v["draft"]["exists"]
-                                                             and not v["draft"]["written"])
     history = []
-    for v in views:
-        for n, action in enumerate(v.get("actions") or []):
-            history.append(dict(action, item_id=v["id"], question=v["question"], fix_type=v["fix"]["type"],
-                                can_undo=(action["action"] == "applied" and v["status"] == "applied"
-                                          and n == max(k for k, a in enumerate(v["actions"])
-                                                       if a["action"] == "applied"))))
+    for item, view in zip(items, views):
+        undo_at = _review_undoable(item)
+        for n, action in enumerate(item.get("actions") or []):
+            history.append(dict(action, item_id=item["id"], question=item["question"], can_undo=n == undo_at))
     history.sort(key=lambda a: a["at"], reverse=True)
     return JSONResponse({
-        "open": [v for v in views if is_open(v) and v["fix"]["type"] != "factual"],
-        "editor": [v for v in views if for_editor(v) and (is_open(v) or v["fix"]["type"] != "factual")],
+        "open": [v for v in views if v["open"]],
+        "editor": [v for v in views if v["for_editor"]],
         "history": history,
         "backups_dir": REVIEW_BACKUP_DIR,
     }, headers={"Cache-Control": "no-store"})
@@ -7311,7 +7437,7 @@ def _review_by(body: Dict[str, Any], required: bool = False) -> str:
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-def _review_open_item(item_id: str) -> Dict[str, Any]:
+def _review_get(item_id: str) -> Dict[str, Any]:
     with _answer_review_lock:
         item = next((i for i in _review_load() if i["id"] == item_id), None)
     if item is None:
@@ -7319,17 +7445,17 @@ def _review_open_item(item_id: str) -> Dict[str, Any]:
     return item
 
 
-def _review_run_check(item: Dict[str, Any], fix: Dict[str, Any]) -> Dict[str, Any]:
+def _review_run_check(item: Dict[str, Any], fixes: List[Dict[str, Any]]) -> Dict[str, Any]:
     """What every FAQ title, phrasing and golden question answers before and
-    after the fix, measured by api/review_impact.py in its own process, so the
-    live corpus is never touched while it runs."""
+    after the fixes, measured by api/review_impact.py in its own process, so
+    the live corpus is never touched while it runs."""
     import subprocess
     import sys
     import tempfile
     with tempfile.TemporaryDirectory(prefix="review-check-") as tmp:
         job, out = os.path.join(tmp, "job.json"), os.path.join(tmp, "out.json")
         with open(job, "w", encoding="utf-8") as fh:
-            json.dump({"fix": fix, "item_id": item["id"], "wordings": item["wordings"],
+            json.dump({"fixes": fixes, "item_id": item["id"], "wordings": item["wordings"],
                        "faq_path": FAQ_PATH}, fh)
         proc = subprocess.run([sys.executable, "-m", "api.review_impact", job, out],
                               cwd=BASE_DIR, env=dict(os.environ, GROQ_API_KEY=""),
@@ -7340,54 +7466,66 @@ def _review_run_check(item: Dict[str, Any], fix: Dict[str, Any]) -> Dict[str, An
             return json.load(fh)
 
 
-def _review_apply_job(item_id: str, fix: Dict[str, Any], by: str, override: bool,
-                      edited_from: Optional[Dict[str, Any]]) -> None:
-    started = time.time()
+def _review_apply_job(item_id: str, fixes: List[Dict[str, Any]], by: str, override: bool,
+                      edited: Dict[str, Any]) -> None:
+    started, started_at = time.time(), _review_now()
+    fix_ids = [f["id"] for f in fixes]
 
     def set_check(**state):
-        state.setdefault("started", started_at)
-        state["started_epoch"] = started
-        state["fix"] = fix
+        state.update(started=started_at, started_epoch=started, fix_ids=fix_ids, fixes=fixes)
         _review_update(item_id, lambda i: i.__setitem__("check", state))
 
-    started_at = _review_now()
     try:
-        reason = _review_fits(fix)
+        reason = _review_fits_all(fixes, item_id)
         if reason:
             return set_check(state="no_longer_fits", reason=reason)
-        target = _review_target_id(fix, item_id)
-        seen_before = _review_copy(target)
-        item = _review_open_item(item_id)
-        if fix["type"] == "new_faq":
-            result = {"checked": 0, "moved": [], "target": None,
+        targets = list(dict.fromkeys(_review_target_id(f, item_id) for f in fixes))
+        seen_before = {t: _review_copy(t) for t in targets}
+        item = _review_get(item_id)
+        if all(f["type"] == "new_faq" for f in fixes):
+            result = {"checked": 0, "moved": [], "targets": [],
                       "note": "A draft never answers visitors, so no answer can move."}
         else:
-            result = _review_run_check(item, fix)
-        clean = not result["moved"] and (result.get("target") or {}).get("ok", True)
+            result = _review_run_check(item, fixes)
+        clean = not result["moved"] and all(t["ok"] for t in result.get("targets") or [])
         if not clean and not override:
             return set_check(state="moves", result=result)
         with _answer_review_lock:
-            reason = _review_fits(fix)
+            reason = _review_fits_all(fixes, item_id)
             if reason:
                 return set_check(state="no_longer_fits", reason=reason)
-            if _review_copy(target) != seen_before:
+            changed = [t for t in targets if _review_copy(t) != seen_before[t]]
+            if changed:
                 return set_check(state="changed_during_check",
-                                 reason=f"{target} was edited while the check ran. Apply again.")
+                                 reason=f"{', '.join(changed)} changed while the check ran. Apply again.")
             backup = _review_backup(item_id)
-            chunk_id = _review_write(fix, item_id)
-            action = {"action": "applied", "at": _review_now(), "by": by, "fix": fix,
-                      "chunk_id": chunk_id, "backup": backup, "before": seen_before,
-                      "after": _review_copy(chunk_id), "checked": result["checked"],
-                      "moved": result["moved"], "target": result.get("target"),
+            changes = [{"chunk_id": t, "before": seen_before[t], "after": None} for t in targets]
+            try:
+                for fix in fixes:
+                    _review_write(fix, item_id)
+            except Exception:
+                _review_restore(changes, "before")
+                raise
+            for change in changes:
+                change["after"] = _review_copy(change["chunk_id"])
+            item = _review_get(item_id)
+            not_chosen = [f for f in item["fixes"]
+                          if f["status"] == "open" and f["type"] != "factual" and f["id"] not in fix_ids]
+            action = {"action": "applied", "at": _review_now(), "by": by,
+                      "chosen": fixes, "not_chosen": not_chosen, "edited": edited,
+                      "changes": changes, "backup": backup, "checked": result["checked"],
+                      "moved": result["moved"], "targets": result.get("targets") or [],
                       "golden": result.get("golden"), "overridden": bool(not clean and override)}
-            if edited_from is not None:
-                action["edited_from"] = edited_from
 
             def applied(i):
-                i["status"] = "applied"
-                i["fix"] = fix
+                chosen = {f["id"]: f for f in fixes}
+                for f in i["fixes"]:
+                    if f["id"] in chosen:
+                        f.update(chosen[f["id"]], status="applied")
+                    elif f["status"] == "open" and f["type"] != "factual":
+                        f["status"] = "not_chosen"
                 i["check"] = {"state": "applied", "started": started_at, "finished": _review_now(),
-                              "result": result, "fix": fix}
+                              "result": result, "fix_ids": fix_ids}
                 i.setdefault("actions", []).append(action)
             _review_update(item_id, applied)
     except HTTPException as exc:
@@ -7398,122 +7536,140 @@ def _review_apply_job(item_id: str, fix: Dict[str, Any], by: str, override: bool
 
 @app.post("/admin/answer-review/{item_id}/apply")
 async def answer_review_apply(item_id: str, request: Request):
-    """Start an apply: fits, then the check, then the write if clean.
+    """Apply the ticked fixes of one card.
 
-    {"by": initials, "fix": {...edited fix, optional}, "override": bool}.
-    Override is Apply anyway: only after a check found moves, only for the
-    fix that check measured, and only with initials."""
+    {"by": initials, "fix_ids": ["f1", ...], "edits": {"f1": {...edited fix}},
+     "override": bool}.  Fixes apply in the card's order.  Override is Apply
+    anyway: only after a check found moves, only for the same fixes, and only
+    with initials."""
     body = await _review_body(request)
-    item = _review_open_item(item_id)
-    if item["status"] != "open":
-        raise HTTPException(status_code=409, detail=f"{item_id} is {item['status']}, not open")
-    if item["fix"]["type"] == "factual":
-        raise HTTPException(status_code=400, detail="a possible factual error has no Apply; it is for the editor")
+    item = _review_get(item_id)
     check = item.get("check") or {}
     if check.get("state") == "checking" and time.time() - check.get("started_epoch", 0) <= _REVIEW_STALE_CHECK:
-        raise HTTPException(status_code=409, detail="a check is already running for this item")
+        raise HTTPException(status_code=409, detail="a check is already running for this card")
     override = bool(body.get("override"))
     by = _review_by(body, required=override)
-    edited_from = None
-    fix = item["fix"]
-    if body.get("fix") is not None:
-        try:
-            fix = _review_clean_fix(body["fix"], item["question"])
-        except _ReviewError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        if fix["type"] != item["fix"]["type"]:
-            raise HTTPException(status_code=400, detail="Edit then apply keeps the fix's type")
-        if fix != item["fix"]:
-            edited_from = item.get("original_fix") or item["fix"]
-    if override and (check.get("state") != "moves" or check.get("fix") != fix):
-        raise HTTPException(status_code=409, detail="Apply anyway follows a check that found moves, for the same fix")
-    if edited_from is not None:
-        def edited(i):
-            i.setdefault("original_fix", i["fix"])
-            i["fix"] = fix
-        _review_update(item_id, edited)
-    state = {"state": "checking", "started": _review_now(), "started_epoch": time.time(), "fix": fix}
+    wanted = body.get("fix_ids")
+    if not isinstance(wanted, list) or not wanted:
+        raise HTTPException(status_code=400, detail="tick at least one fix")
+    by_id = {f["id"]: f for f in item["fixes"]}
+    for fix_id in wanted:
+        fix = by_id.get(fix_id)
+        if fix is None:
+            raise HTTPException(status_code=400, detail=f"{fix_id} is not a fix on this card")
+        if fix["type"] == "factual":
+            raise HTTPException(status_code=400, detail="a possible factual error has no Apply; it is for the editor")
+        if fix["status"] != "open":
+            raise HTTPException(status_code=409, detail=f"{fix_id} is {fix['status']}, not open")
+    edits = body.get("edits") or {}
+    if not isinstance(edits, dict):
+        raise HTTPException(status_code=400, detail="edits must map fix ids to fixes")
+    fixes, edited = [], {}
+    for fix in item["fixes"]:
+        if fix["id"] not in wanted:
+            continue
+        chosen = dict(fix)
+        if fix["id"] in edits:
+            try:
+                core = _review_clean_fix(edits[fix["id"]], item["question"])
+            except _ReviewError as exc:
+                raise HTTPException(status_code=400, detail=f"{fix['id']}: {exc}")
+            if core["type"] != fix["type"]:
+                raise HTTPException(status_code=400, detail="Edit then apply keeps each fix's type")
+            if core != _review_fix_core(fix):
+                edited[fix["id"]] = _review_fix_core(fix)
+                chosen = dict({k: v for k, v in fix.items() if k in _REVIEW_FIX_META}, **core)
+                chosen.setdefault("original", _review_fix_core(fix))
+        chosen.pop("status", None)
+        fixes.append(chosen)
+    if override and (check.get("state") != "moves" or check.get("fixes") != fixes):
+        raise HTTPException(status_code=409, detail="Apply anyway follows a check that found moves, for the same fixes")
+    state = {"state": "checking", "started": _review_now(), "started_epoch": time.time(),
+             "fix_ids": [f["id"] for f in fixes], "fixes": fixes}
     _review_update(item_id, lambda i: i.__setitem__("check", state))
-    threading.Thread(target=_review_apply_job, args=(item_id, fix, by, override, edited_from),
+    threading.Thread(target=_review_apply_job, args=(item_id, fixes, by, override, edited),
                      name=f"answer-review-{item_id}", daemon=True).start()
     return JSONResponse({"status": "checking", "item_id": item_id}, status_code=202)
 
 
 @app.post("/admin/answer-review/{item_id}/dismiss")
 async def answer_review_dismiss(item_id: str, request: Request):
+    """Dismiss the whole card: every fix still open on it."""
     body = await _review_body(request)
-    item = _review_open_item(item_id)
-    if item["status"] != "open":
-        raise HTTPException(status_code=409, detail=f"{item_id} is {item['status']}, not open")
+    item = _review_get(item_id)
+    still_open = [f for f in item["fixes"] if f["status"] == "open"]
+    if not still_open:
+        raise HTTPException(status_code=409, detail=f"{item_id} has nothing open")
     try:
         reason = _review_text(body.get("reason"), "reason", limit=500)
     except _ReviewError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    action = {"action": "dismissed", "at": _review_now(), "by": _review_by(body), "reason": reason}
+    action = {"action": "dismissed", "at": _review_now(), "by": _review_by(body), "reason": reason,
+              "fixes": still_open}
 
     def dismissed(i):
-        i["status"] = "dismissed"
+        for f in i["fixes"]:
+            if f["status"] == "open":
+                f["status"] = "dismissed"
+        i.pop("check", None)
         i.setdefault("actions", []).append(action)
     _review_update(item_id, dismissed)
     return {"status": "dismissed", "item_id": item_id}
 
 
-@app.post("/admin/answer-review/{item_id}/resolve")
-async def answer_review_resolve(item_id: str, request: Request):
+@app.post("/admin/answer-review/{item_id}/fixes/{fix_id}/resolve")
+async def answer_review_resolve(item_id: str, fix_id: str, request: Request):
     """A possible factual error, looked into by the editor."""
     body = await _review_body(request)
-    item = _review_open_item(item_id)
-    if item["fix"]["type"] != "factual" or item["status"] != "open":
+    item = _review_get(item_id)
+    fix = next((f for f in item["fixes"] if f["id"] == fix_id), None)
+    if fix is None or fix["type"] != "factual" or fix["status"] != "open":
         raise HTTPException(status_code=409, detail="only an open possible factual error can be resolved")
     try:
         note = _review_text(body.get("note"), "note", limit=1000)
     except _ReviewError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    action = {"action": "resolved", "at": _review_now(), "by": _review_by(body), "note": note}
+    action = {"action": "resolved", "at": _review_now(), "by": _review_by(body), "note": note, "fixes": [fix]}
 
     def resolved(i):
-        i["status"] = "resolved"
+        next(f for f in i["fixes"] if f["id"] == fix_id)["status"] = "resolved"
         i.setdefault("actions", []).append(action)
     _review_update(item_id, resolved)
-    return {"status": "resolved", "item_id": item_id}
+    return {"status": "resolved", "item_id": item_id, "fix_id": fix_id}
 
 
 @app.post("/admin/answer-review/{item_id}/undo")
 async def answer_review_undo(item_id: str, request: Request):
-    """Put the record back as it was before the last apply, if nobody has
-    changed it since.  The item goes back to Open."""
+    """Put every record the card's last apply changed back as it was, if
+    nobody has changed one since.  Its chosen and not-chosen fixes reopen."""
     body = await _review_body(request)
     by = _review_by(body)
     with _answer_review_lock:
-        item = _review_open_item(item_id)
-        applied = [a for a in item.get("actions") or [] if a["action"] == "applied"]
-        if item["status"] != "applied" or not applied:
+        item = _review_get(item_id)
+        at = _review_undoable(item)
+        if at is None:
             raise HTTPException(status_code=409, detail=f"{item_id} has no apply to undo")
-        last = applied[-1]
-        chunk_id = last["chunk_id"]
-        if _review_copy(chunk_id) != last["after"]:
-            now = _review_record(chunk_id)
-            why = ("no longer exists" if now is None else
-                   f"was accepted or edited since" if last["before"] is None else "was edited since")
-            raise HTTPException(status_code=409,
-                                detail=f"{chunk_id} {why}; undo it by hand in the FAQ editor")
+        last = item["actions"][at]
+        for change in last["changes"]:
+            if _review_copy(change["chunk_id"]) != change["after"]:
+                why = ("no longer exists" if _review_record(change["chunk_id"]) is None
+                       else "was accepted or edited since" if change["before"] is None else "was edited since")
+                raise HTTPException(status_code=409,
+                                    detail=f"{change['chunk_id']} {why}; undo it by hand in the FAQ editor")
         backup = _review_backup(item_id + "-undo")
-        with _faq_write_lock:
-            at = next(n for n, e in enumerate(FAQ_ALL) if e.get("chunk_id") == chunk_id)
-            if last["before"] is None:
-                FAQ_ALL.pop(at)
-            else:
-                FAQ_ALL[at] = json.loads(json.dumps(last["before"]))
-            _save_faq_corpus()
-        action = {"action": "undone", "at": _review_now(), "by": by, "chunk_id": chunk_id,
-                  "backup": backup, "undid": last["at"]}
+        _review_restore(last["changes"], "before")
+        reopened = {f["id"] for f in last["chosen"] + last["not_chosen"]}
+        action = {"action": "undone", "at": _review_now(), "by": by, "backup": backup, "undid": last["at"],
+                  "changes": [c["chunk_id"] for c in last["changes"]]}
 
         def undone(i):
-            i["status"] = "open"
+            for f in i["fixes"]:
+                if f["id"] in reopened:
+                    f["status"] = "open"
             i.pop("check", None)
             i["actions"].append(action)
         _review_update(item_id, undone)
-    return {"status": "undone", "item_id": item_id, "chunk_id": chunk_id}
+    return {"status": "undone", "item_id": item_id, "chunk_ids": [c["chunk_id"] for c in last["changes"]]}
 
 
 @app.get("/admin/ask-log")
