@@ -5536,7 +5536,11 @@ def public_videos(museum_id: str = ""):
 @app.post("/admin/faq")
 async def create_faq(request: Request):
     """Create a new faq_NNN entry from a simple title + text payload."""
-    body = await request.json()
+    return _create_faq_entry(await request.json())
+
+
+def _create_faq_entry(body: Dict[str, Any]) -> Dict[str, Any]:
+    """POST /admin/faq's work, shared with the answer review page's Apply."""
     title = (body.get("title") or "").strip()
     text = _normalize_faq_html((body.get("text") or "").strip())
     category = (body.get("category") or "").strip()
@@ -5600,7 +5604,11 @@ async def create_faq(request: Request):
 @app.put("/admin/faq/{chunk_id}")
 async def update_faq(chunk_id: str, request: Request):
     """Update title and/or text of any FAQ entry."""
-    body = await request.json()
+    return _update_faq_entry(chunk_id, await request.json())
+
+
+def _update_faq_entry(chunk_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
+    """PUT /admin/faq/{id}'s work, shared with the answer review page's Apply."""
     title = (body.get("title") or "").strip()
     text = _normalize_faq_html((body.get("text") or "").strip())
     entry = next((e for e in FAQ_ALL if e.get("chunk_id") == chunk_id), None)
