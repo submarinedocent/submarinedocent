@@ -82,6 +82,13 @@
     .ar-note.bad { background: rgba(248, 81, 73, 0.12); }
     .ar-form { margin-top: 10px; padding: 10px; border: 1px dashed #30363d; border-radius: 8px; }
     .ar-form .ar-option { background: transparent; }
+    /* While Edit then apply is open, the rest of the card is locked and dimmed,
+       and the form's buttons stay in view at the bottom of the window. */
+    .ar-locked { opacity: 0.4; }
+    .ar-form .ar-actions.sticky {
+      position: sticky; bottom: 0; background: #0d1117; margin: 12px -10px -10px; padding: 10px;
+      border-top: 1px solid #30363d; border-radius: 0 0 8px 8px;
+    }
 
     table { width: 100%; border-collapse: collapse; margin-top: 6px; }
     th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #8b949e;
@@ -134,6 +141,10 @@
     const forms = new Set();      // which card forms are open: id + ':edit' / ':dismiss' / ':resolve:f1'
     const ticked = new Map();     // card id -> Set of ticked text-edit ids, kept across refreshes
     const picked = new Map();     // card id -> the answer fix chosen, '' for None (the default)
+    // card id -> the Edit then apply form as typed: { answer, ticked: Set, fields: {fix id: {name: value}},
+    // start }.  Kept across refreshes and tab switches, so only Cancel or leaving the page loses it.
+    const drafts = new Map();
+    let scrollToForm = null;      // card id whose edit form was just opened
     // Pointing to a better FAQ and drafting a new one are alternatives: choose one or none.
     const isAnswer = f => f.type === 'point_to_faq' || f.type === 'new_faq';
     const usable = f => f && f.status === 'open' && f.type !== 'factual' && !f.fits;
@@ -358,59 +369,104 @@
       return (ids || []).map(id => item.fixes.findIndex(f => f.id === id) + 1).join(', ');
     }
 
+    const editable = f => f.status === 'open' && (isAnswer(f) || f.type === 'text_edit');
+    const FIELDS = {
+      point_to_faq: ['faq_id', 'phrasing'], text_edit: ['faq_id', 'field', 'old', 'new'],
+      new_faq: ['title', 'category_title', 'note'],
+    };
+    const MULTI = new Set(['old', 'new', 'note']);
+    const snapshot = d => JSON.stringify([d.answer, [...d.ticked].sort(), d.fields]);
+
+    // The form starts from the card: its answer choice, its ticks and each fix as suggested.
+    function newDraft(item) {
+      const fields = {};
+      for (const f of item.fixes.filter(editable)) {
+        fields[f.id] = {};
+        for (const k of FIELDS[f.type]) fields[f.id][k] = f[k] || (k === 'field' ? 'text' : '');
+      }
+      const d = { answer: pick(item), ticked: new Set(tickSet(item)), fields };
+      d.start = snapshot(d);
+      drafts.set(item.id, d);
+      return d;
+    }
+
+    function openEdit(item) {
+      newDraft(item);
+      forms.delete(item.id + ':dismiss');
+      forms.add(item.id + ':edit');
+      scrollToForm = item.id;
+      render();
+    }
+
+    function editDirty(id) {
+      const d = drafts.get(id);
+      return !!d && forms.has(id + ':edit') && snapshot(d) !== d.start;
+    }
+
+    function closeEdit(id) {
+      forms.delete(id + ':edit');
+      drafts.delete(id);
+    }
+
     function editForm(item, errBox) {
-      const set = tickSet(item);
-      const rows = [];
+      const d = drafts.get(item.id) || newDraft(item);
+      const open = item.fixes.filter(editable);
+      // A fix that closed since the form opened (another tab, another admin) drops out.
+      if (d.answer && !open.some(f => f.id === d.answer)) d.answer = '';
+      for (const id of [...d.ticked]) if (!open.some(f => f.id === id)) d.ticked.delete(id);
       const radioName = 'edit-answer-' + item.id;
-      const form = el('div', { class: 'ar-form' }, el('div', { class: 'ar-hint' }, 'Change any option, choose an answer fix or None, tick any text edits, then apply them together.'));
-      const answers = item.fixes.filter(f => f.status === 'open' && isAnswer(f));
-      let none = null;
+      const form = el('div', { class: 'ar-form', 'data-edit': item.id },
+        el('div', { class: 'ar-hint' }, 'Change any option, choose an answer fix or None, tick any text edits, then apply them together. The rest of the card is locked until you apply or cancel.'));
+      const answers = open.filter(isAnswer);
       if (answers.length) {
         form.append(el('div', { class: 'ar-group' }, 'Answer ', el('span', {}, 'choose one')));
-        none = noneOption(item, false, radioName, !pick(item), null);
-        form.append(none);
+        form.append(noneOption(item, false, radioName, !d.answer, () => { d.answer = ''; }));
       }
-      const ordered = [...answers, ...item.fixes.filter(f => f.status === 'open' && f.type === 'text_edit')];
+      const ordered = [...answers, ...open.filter(f => f.type === 'text_edit')];
       ordered.forEach((f, k) => {
         if (k === answers.length) form.append(el('div', { class: 'ar-group' }, 'Text edits ', el('span', {}, 'tick any')));
         const i = item.fixes.indexOf(f);
-        const fields = {};
-        const input = (name, value, multi) => {
-          fields[name] = multi ? el('textarea', {}, value || '') : el('input', { value: value || '', style: 'width:100%' });
-          return [el('label', {}, name), fields[name]];
-        };
+        const values = d.fields[f.id] || (d.fields[f.id] = {});
         const box = isAnswer(f)
-          ? el('input', { type: 'radio', name: radioName, checked: pick(item) === f.id, 'aria-label': 'Choose option ' + (i + 1) })
-          : el('input', { type: 'checkbox', checked: set.has(f.id), 'aria-label': 'Apply option ' + (i + 1) });
+          ? el('input', { type: 'radio', name: radioName, checked: d.answer === f.id, 'aria-label': 'Choose option ' + (i + 1),
+                          onchange: () => { d.answer = f.id; } })
+          : el('input', { type: 'checkbox', checked: d.ticked.has(f.id), 'aria-label': 'Apply option ' + (i + 1),
+                          onchange: e => { e.target.checked ? d.ticked.add(f.id) : d.ticked.delete(f.id); } });
         const body = el('div', {}, el('div', { class: 'ar-option-head' }, `Option ${i + 1}: ${TYPE[f.type]}`));
-        if (f.type === 'point_to_faq') body.append(...input('faq_id', f.faq_id), ...input('phrasing', f.phrasing));
-        if (f.type === 'text_edit') {
-          body.append(...input('faq_id', f.faq_id));
-          fields.field = el('select', {}, el('option', { value: 'text', selected: f.field === 'text' }, 'text'),
-                            el('option', { value: 'title', selected: f.field === 'title' }, 'title'));
-          body.append(el('label', {}, 'field'), fields.field, ...input('old', f.old, true), ...input('new', f.new, true));
+        for (const name of FIELDS[f.type]) {
+          const keep = e => { values[name] = e.target.value; };
+          const node = name === 'field'
+            ? el('select', { onchange: keep }, ['text', 'title'].map(v => el('option', { value: v, selected: values[name] === v }, v)))
+            : MULTI.has(name) ? el('textarea', { oninput: keep }, values[name] || '')
+            : el('input', { value: values[name] || '', style: 'width:100%', oninput: keep });
+          body.append(el('label', {}, name), node);
         }
-        if (f.type === 'new_faq') body.append(...input('title', f.title), ...input('category_title', f.category_title), ...input('note', f.note, true));
-        rows.push({ f, box, fields });
         form.append(el('div', { class: 'ar-option' }, box, body));
       });
-      form.append(el('div', { class: 'ar-actions' },
+      form.append(el('div', { class: 'ar-actions sticky' },
         el('button', {
           class: 'ar-btn primary', onclick: () => {
-            const chosen = rows.filter(r => r.box.checked);
+            const chosen = ordered.filter(f => f.id === d.answer || d.ticked.has(f.id));
             if (!chosen.length) { errBox.textContent = 'Choose an answer fix or tick a text edit.'; return; }
             const edits = {};
-            for (const r of chosen) {
-              const fix = { type: r.f.type };
-              for (const [k, node] of Object.entries(r.fields)) fix[k] = node.value;
-              edits[r.f.id] = fix;
-            }
-            act(`/admin/answer-review/${item.id}/apply`, { fix_ids: chosen.map(r => r.f.id), edits }, errBox, () => forms.delete(item.id + ':edit'));
+            for (const f of chosen) edits[f.id] = Object.assign({ type: f.type }, d.fields[f.id]);
+            act(`/admin/answer-review/${item.id}/apply`, { fix_ids: chosen.map(f => f.id), edits }, errBox, () => closeEdit(item.id));
           }
         }, 'Apply the chosen, as edited'),
-        el('button', { class: 'ar-btn', onclick: () => { forms.delete(item.id + ':edit'); render(); } }, 'Cancel')));
+        el('button', {
+          class: 'ar-btn', onclick: () => {
+            if (editDirty(item.id) && !confirm('Discard your edits to this card?')) return;
+            closeEdit(item.id); render();
+          }
+        }, 'Cancel'),
+        errBox));
       return form;
     }
+
+    // Leaving or closing the page with edits typed and not applied.
+    window.addEventListener('beforeunload', e => {
+      if ([...drafts.keys()].some(editDirty)) { e.preventDefault(); e.returnValue = ''; }
+    });
 
     function dismissForm(item, errBox) {
       const reason = el('input', { style: 'width:100%', placeholder: 'Why' });
@@ -422,7 +478,10 @@
     }
 
     function itemCard(item) {
-      const card = el('div', { class: 'ar-item' });
+      const editing = forms.has(item.id + ':edit') && tab === 'open';
+      const outer = el('div', { class: 'ar-item' });
+      const card = el('div', editing ? { class: 'ar-locked', inert: true } : {});
+      outer.append(card);
       const a = item.asked || {};
       card.append(el('p', { class: 'ar-q' }, item.question),
         el('div', { class: 'ar-asked' }, `asked ${a.on_date || 0} on ${a.date}, ${a.total || 0} in all (from the question log)`));
@@ -469,15 +528,18 @@
             class: 'ar-btn primary', disabled: busy || !ids.length,
             onclick: () => act(`/admin/answer-review/${item.id}/apply`, { fix_ids: chosenIds(item) }, errBox)
           }, ids.length ? `Apply ${ids.length === 1 ? 'the chosen fix' : 'the ' + ids.length + ' chosen fixes'}` : 'Apply'),
-          el('button', { class: 'ar-btn', disabled: busy, onclick: () => { forms.add(item.id + ':edit'); render(); } }, 'Edit then apply'));
+          el('button', { class: 'ar-btn', disabled: busy, onclick: () => openEdit(item) }, 'Edit then apply'));
       }
       actions.append(el('button', { class: 'ar-btn', disabled: busy, onclick: () => { forms.add(item.id + ':dismiss'); render(); } }, 'Dismiss card'));
-      if (applicable && !ids.length && !busy) actions.append(el('span', { class: 'ar-hint' }, 'Choose an answer fix or tick a text edit. Options not chosen are recorded as such.'));
+      if (applicable && !ids.length && !busy) actions.append(el('span', { class: 'ar-hint' }, 'Choose an answer fix or tick a text edit.'));
       card.append(actions);
-      if (forms.has(item.id + ':edit')) card.append(editForm(item, errBox));
+      if (editing) {
+        if (!item.fixes.some(editable)) closeEdit(item.id);
+        else { outer.append(editForm(item, errBox)); return outer; }
+      }
       if (forms.has(item.id + ':dismiss')) card.append(dismissForm(item, errBox));
       card.append(errBox);
-      return card;
+      return outer;
     }
 
     function changedFields(before, after) {
@@ -542,6 +604,15 @@
         return;
       }
       items.forEach(i => target.append(itemCard(i)));
+      if (scrollToForm) {
+        const form = target.querySelector(`[data-edit="${scrollToForm}"]`);
+        scrollToForm = null;
+        if (form) {
+          form.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          const first = form.querySelector('input, textarea, select');
+          if (first) first.focus({ preventScroll: true });
+        }
+      }
     }
 
     async function load(force) {
