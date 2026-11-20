@@ -132,11 +132,19 @@
     const ticked = new Map();     // card id -> Set of ticked fix ids, kept across refreshes
     let pollTimer = null;
 
+    // The last initials used in this browser, filled in for the next action and
+    // still editable.  Kept in this browser only; the server stores initials
+    // with each action it records, never as a setting.
+    const INITIALS_KEY = 'answerReviewInitials';
     const initials = document.getElementById('ar-initials');
-    try { initials.value = localStorage.getItem('answerReviewInitials') || ''; } catch (e) { }
-    initials.addEventListener('input', () => {
-      try { localStorage.setItem('answerReviewInitials', initials.value.trim()); } catch (e) { }
-    });
+    function lastInitials() {
+      try { return localStorage.getItem(INITIALS_KEY) || ''; } catch (e) { return ''; }
+    }
+    function rememberInitials(value) {
+      try { if (value) localStorage.setItem(INITIALS_KEY, value); } catch (e) { }
+      if (value && document.activeElement !== initials) initials.value = value;
+    }
+    initials.value = lastInitials();
 
     function el(tag, attrs, ...kids) {
       const node = document.createElement(tag);
@@ -193,6 +201,7 @@
       errBox.textContent = '';
       try {
         await call(path, Object.assign({ by: who() }, body || {}));
+        rememberInitials(who());
         if (after) after();
         await load(true);
       } catch (e) { errBox.textContent = e.message; }
@@ -303,7 +312,7 @@
             el('td', { class: 'mono' }, m.before), el('td', { class: 'mono' }, m.after)))));
       }
       if (r.golden) box.append(el('div', {}, `Golden questions right: ${r.golden.before} now, ${r.golden.after} after, of ${r.golden.total}.`));
-      const anyway = el('input', { maxlength: 20, placeholder: 'initials', 'aria-label': 'Initials to apply anyway' });
+      const anyway = el('input', { maxlength: 20, placeholder: 'initials', value: lastInitials(), 'aria-label': 'Initials to apply anyway' });
       const err = el('div', { class: 'ar-err' });
       box.append(el('div', { class: 'ar-form' },
         el('label', {}, 'Apply anyway: the history will record that you saw these and overrode the check. Type your initials.'),
@@ -312,8 +321,9 @@
           class: 'ar-btn warn', onclick: () => {
             if (!anyway.value.trim()) { err.textContent = 'Initials are required to apply anyway.'; return; }
             err.textContent = '';
-            call(`/admin/answer-review/${item.id}/apply`, { by: anyway.value.trim(), override: true, fix_ids: c.fix_ids, edits: cores(c.fixes) })
-              .then(() => load(true)).catch(e => { err.textContent = e.message; });
+            const by = anyway.value.trim();
+            call(`/admin/answer-review/${item.id}/apply`, { by, override: true, fix_ids: c.fix_ids, edits: cores(c.fixes) })
+              .then(() => { rememberInitials(by); return load(true); }).catch(e => { err.textContent = e.message; });
           }
         }, 'Apply anyway'), err));
       return box;
