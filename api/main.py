@@ -6884,6 +6884,10 @@ _REVIEW_MAX_WORDINGS = 20
 _REVIEW_OUTCOMES = {"record", "manual", "fallback", "refusal", "short_query"}
 _REVIEW_CATEGORIES = {"wrong_answer", "no_answer", "partial_answer", "typo", "wording", "factual"}
 _REVIEW_FIX_TYPES = {"point_to_faq", "text_edit", "new_faq", "factual"}
+# Fixes that change which answer a question gets.  They are alternatives: an
+# apply takes at most one, chosen like a radio button, with none the default.
+# Text edits are independent of them and of each other.
+_REVIEW_ANSWER_FIXES = {"point_to_faq", "new_faq"}
 # What a fix is, as opposed to what is said about it.  Two fixes with the same
 # core are the same fix, whatever reason accompanies them.
 _REVIEW_FIX_META = ("id", "status", "category", "reason", "original")
@@ -7513,6 +7517,10 @@ def _review_apply_job(item_id: str, fixes: List[Dict[str, Any]], by: str, overri
                           if f["status"] == "open" and f["type"] != "factual" and f["id"] not in fix_ids]
             action = {"action": "applied", "at": _review_now(), "by": by,
                       "chosen": fixes, "not_chosen": not_chosen, "edited": edited,
+                      # The answer fix picked, or "none" when the card offered
+                      # some and none was picked; absent when it offered none.
+                      **({"answer_fix": next((f["id"] for f in fixes if f["type"] in _REVIEW_ANSWER_FIXES), "none")}
+                         if any(f["type"] in _REVIEW_ANSWER_FIXES for f in fixes + not_chosen) else {}),
                       "changes": changes, "backup": backup, "checked": result["checked"],
                       "moved": result["moved"], "targets": result.get("targets") or [],
                       "golden": result.get("golden"), "overridden": bool(not clean and override)}
@@ -7561,6 +7569,9 @@ async def answer_review_apply(item_id: str, request: Request):
             raise HTTPException(status_code=400, detail="a possible factual error has no Apply; it is for the editor")
         if fix["status"] != "open":
             raise HTTPException(status_code=409, detail=f"{fix_id} is {fix['status']}, not open")
+    if sum(1 for fix_id in wanted if by_id[fix_id]["type"] in _REVIEW_ANSWER_FIXES) > 1:
+        raise HTTPException(status_code=400,
+                            detail="choose one answer fix: point to a better FAQ or a new FAQ draft, not both")
     edits = body.get("edits") or {}
     if not isinstance(edits, dict):
         raise HTTPException(status_code=400, detail="edits must map fix ids to fixes")

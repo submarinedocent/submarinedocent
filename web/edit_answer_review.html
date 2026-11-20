@@ -62,7 +62,9 @@
       background: rgba(0, 0, 0, 0.15);
     }
     .ar-option.closed { opacity: 0.6; }
-    .ar-option input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0 4px; accent-color: #2ea043; }
+    .ar-option input[type="checkbox"], .ar-option input[type="radio"] { width: 18px; height: 18px; margin: 2px 0 0 4px; accent-color: #2ea043; }
+    .ar-group { font-size: 12px; color: #c9d1d9; margin: 14px 0 0; font-weight: 600; }
+    .ar-group span { color: #8b949e; font-weight: 400; }
     .ar-option-head { font-size: 13px; color: #e6edf3; font-weight: 600; margin-bottom: 4px; }
 
     .ar-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
@@ -105,11 +107,11 @@
   <div class="ar-wrap">
     <h1>Answer review</h1>
     <p class="ar-sub">
-      One card per visitor question the daily review flagged, with every fix it suggested. Tick the
-      fixes you want and press Apply: the page checks that they still fit, then measures what every
-      FAQ title, phrasing and golden question would answer after them, and writes only if nothing
-      else moves. Fixes left unticked are recorded as not chosen. Every apply backs up the FAQ file
-      first and can be undone from History.
+      One card per visitor question the daily review flagged, with every fix it suggested. Choose one
+      answer fix or None, tick any text edits, and press Apply: the page checks that they still fit,
+      then measures what every FAQ title, phrasing and golden question would answer after them, and
+      writes only if nothing else moves. Options not chosen are recorded as such. Every apply backs up
+      the FAQ file first and can be undone from History.
     </p>
     <p class="ar-back"><a href="/web/edit.html">&larr; Editor hub</a></p>
 
@@ -129,7 +131,11 @@
     let data = { open: [], editor: [], history: [] };
     let tab = 'open';
     const forms = new Set();      // which card forms are open: id + ':edit' / ':dismiss' / ':resolve:f1'
-    const ticked = new Map();     // card id -> Set of ticked fix ids, kept across refreshes
+    const ticked = new Map();     // card id -> Set of ticked text-edit ids, kept across refreshes
+    const picked = new Map();     // card id -> the answer fix chosen, '' for None (the default)
+    // Pointing to a better FAQ and drafting a new one are alternatives: choose one or none.
+    const isAnswer = f => f.type === 'point_to_faq' || f.type === 'new_faq';
+    const usable = f => f && f.status === 'open' && f.type !== 'factual' && !f.fits;
     let pollTimer = null;
 
     // The last initials used in this browser, filled in for the next action and
@@ -243,20 +249,38 @@
     function tickSet(item) {
       if (!ticked.has(item.id)) ticked.set(item.id, new Set());
       const set = ticked.get(item.id);
-      for (const id of [...set]) {
-        const f = item.fixes.find(x => x.id === id);
-        if (!f || f.status !== 'open' || f.fits) set.delete(id);
-      }
+      for (const id of [...set]) if (!usable(item.fixes.find(x => x.id === id))) set.delete(id);
       return set;
+    }
+
+    function pick(item) {
+      const id = picked.get(item.id) || '';
+      return usable(item.fixes.find(x => x.id === id)) ? id : '';
+    }
+
+    // The ids an Apply sends, in the card's order: the answer fix chosen, if
+    // any, and the ticked text edits.
+    function chosenIds(item) {
+      const set = tickSet(item), answer = pick(item);
+      return item.fixes.filter(f => f.id === answer || set.has(f.id)).map(f => f.id);
+    }
+
+    function noneOption(item, busy, name, checked, onchange) {
+      return el('div', { class: 'ar-option' },
+        el('input', { type: 'radio', name, checked, disabled: busy, 'aria-label': 'No answer fix', onchange }),
+        el('div', {}, el('div', { class: 'ar-option-head' }, 'None'),
+          el('div', { class: 'ar-hint' }, 'Leave the answer as it is. Any answer option here is recorded as not chosen.')));
     }
 
     function option(item, f, n, busy, errBox) {
       const set = tickSet(item);
-      const can = f.status === 'open' && f.type !== 'factual' && !f.fits;
-      const box = can ? el('input', {
+      const box = !usable(f) ? el('span', {}) : isAnswer(f) ? el('input', {
+        type: 'radio', name: 'answer-' + item.id, checked: pick(item) === f.id, disabled: busy,
+        'aria-label': 'Choose option ' + n, onchange: () => { picked.set(item.id, f.id); render(); }
+      }) : el('input', {
         type: 'checkbox', checked: set.has(f.id), disabled: busy, 'aria-label': 'Apply option ' + n,
         onchange: e => { e.target.checked ? set.add(f.id) : set.delete(f.id); render(); }
-      }) : el('span', {});
+      });
       const head = el('div', { class: 'ar-option-head' }, `Option ${n}: ${TYPE[f.type]} `,
         f.status !== 'open' ? el('span', { class: 'pill ' + f.status }, STATUS[f.status] || f.status) :
           f.type === 'factual' ? el('span', { class: 'pill editor' }, 'no Apply') : null);
@@ -336,15 +360,27 @@
     function editForm(item, errBox) {
       const set = tickSet(item);
       const rows = [];
-      const form = el('div', { class: 'ar-form' }, el('div', { class: 'ar-hint' }, 'Change any option, tick the ones to apply, then apply them together.'));
-      item.fixes.forEach((f, i) => {
-        if (f.status !== 'open' || f.type === 'factual') return;
+      const radioName = 'edit-answer-' + item.id;
+      const form = el('div', { class: 'ar-form' }, el('div', { class: 'ar-hint' }, 'Change any option, choose an answer fix or None, tick any text edits, then apply them together.'));
+      const answers = item.fixes.filter(f => f.status === 'open' && isAnswer(f));
+      let none = null;
+      if (answers.length) {
+        form.append(el('div', { class: 'ar-group' }, 'Answer ', el('span', {}, 'choose one')));
+        none = noneOption(item, false, radioName, !pick(item), null);
+        form.append(none);
+      }
+      const ordered = [...answers, ...item.fixes.filter(f => f.status === 'open' && f.type === 'text_edit')];
+      ordered.forEach((f, k) => {
+        if (k === answers.length) form.append(el('div', { class: 'ar-group' }, 'Text edits ', el('span', {}, 'tick any')));
+        const i = item.fixes.indexOf(f);
         const fields = {};
         const input = (name, value, multi) => {
           fields[name] = multi ? el('textarea', {}, value || '') : el('input', { value: value || '', style: 'width:100%' });
           return [el('label', {}, name), fields[name]];
         };
-        const box = el('input', { type: 'checkbox', checked: set.has(f.id), 'aria-label': 'Apply option ' + (i + 1) });
+        const box = isAnswer(f)
+          ? el('input', { type: 'radio', name: radioName, checked: pick(item) === f.id, 'aria-label': 'Choose option ' + (i + 1) })
+          : el('input', { type: 'checkbox', checked: set.has(f.id), 'aria-label': 'Apply option ' + (i + 1) });
         const body = el('div', {}, el('div', { class: 'ar-option-head' }, `Option ${i + 1}: ${TYPE[f.type]}`));
         if (f.type === 'point_to_faq') body.append(...input('faq_id', f.faq_id), ...input('phrasing', f.phrasing));
         if (f.type === 'text_edit') {
@@ -361,7 +397,7 @@
         el('button', {
           class: 'ar-btn primary', onclick: () => {
             const chosen = rows.filter(r => r.box.checked);
-            if (!chosen.length) { errBox.textContent = 'Tick at least one option.'; return; }
+            if (!chosen.length) { errBox.textContent = 'Choose an answer fix or tick a text edit.'; return; }
             const edits = {};
             for (const r of chosen) {
               const fix = { type: r.f.type };
@@ -370,7 +406,7 @@
             }
             act(`/admin/answer-review/${item.id}/apply`, { fix_ids: chosen.map(r => r.f.id), edits }, errBox, () => forms.delete(item.id + ':edit'));
           }
-        }, 'Apply ticked, as edited'),
+        }, 'Apply the chosen, as edited'),
         el('button', { class: 'ar-btn', onclick: () => { forms.delete(item.id + ':edit'); render(); } }, 'Cancel')));
       return form;
     }
@@ -397,24 +433,45 @@
         ? item.fixes.filter(f => (f.type === 'factual' && f.status === 'open') || (f.draft && f.draft.exists && !f.draft.written))
         : item.fixes;
       card.append(el('div', { class: 'ar-options' }, shown.length === 1 ? 'Suggested fix' : `Suggested fixes (${shown.length})`));
-      for (const f of shown) card.append(option(item, f, item.fixes.indexOf(f) + 1, busy, errBox));
-      if (tab === 'editor') { card.append(errBox); return card; }
+      const num = f => item.fixes.indexOf(f) + 1;
+      if (tab === 'editor') {
+        for (const f of shown) card.append(option(item, f, num(f), busy, errBox));
+        card.append(errBox);
+        return card;
+      }
+      const answers = shown.filter(isAnswer), edits = shown.filter(f => f.type === 'text_edit'),
+            others = shown.filter(f => !isAnswer(f) && f.type !== 'text_edit');
+      if (answers.length) {
+        card.append(el('div', { class: 'ar-group' }, 'Answer ', el('span', {}, 'choose one')));
+        if (answers.some(usable)) {
+          card.append(noneOption(item, busy, 'answer-' + item.id, !pick(item), () => { picked.set(item.id, ''); render(); }));
+        }
+        for (const f of answers) card.append(option(item, f, num(f), busy, errBox));
+      }
+      if (edits.length) {
+        card.append(el('div', { class: 'ar-group' }, 'Text edits ', el('span', {}, 'tick any')));
+        for (const f of edits) card.append(option(item, f, num(f), busy, errBox));
+      }
+      if (others.length) {
+        card.append(el('div', { class: 'ar-group' }, 'For the editor ', el('span', {}, 'no Apply')));
+        for (const f of others) card.append(option(item, f, num(f), busy, errBox));
+      }
 
       const box = checkBox(item);
       if (box) card.append(box);
-      const set = tickSet(item);
+      const ids = chosenIds(item);
       const applicable = item.fixes.some(f => f.status === 'open' && f.type !== 'factual');
       const actions = el('div', { class: 'ar-actions' });
       if (applicable) {
         actions.append(
           el('button', {
-            class: 'ar-btn primary', disabled: busy || !set.size,
-            onclick: () => act(`/admin/answer-review/${item.id}/apply`, { fix_ids: item.fixes.filter(f => set.has(f.id)).map(f => f.id) }, errBox)
-          }, set.size ? `Apply ${set.size === 1 ? 'the ticked fix' : 'the ' + set.size + ' ticked fixes'}` : 'Apply'),
+            class: 'ar-btn primary', disabled: busy || !ids.length,
+            onclick: () => act(`/admin/answer-review/${item.id}/apply`, { fix_ids: chosenIds(item) }, errBox)
+          }, ids.length ? `Apply ${ids.length === 1 ? 'the chosen fix' : 'the ' + ids.length + ' chosen fixes'}` : 'Apply'),
           el('button', { class: 'ar-btn', disabled: busy, onclick: () => { forms.add(item.id + ':edit'); render(); } }, 'Edit then apply'));
       }
       actions.append(el('button', { class: 'ar-btn', disabled: busy, onclick: () => { forms.add(item.id + ':dismiss'); render(); } }, 'Dismiss card'));
-      if (applicable && !set.size && !busy) actions.append(el('span', { class: 'ar-hint' }, 'Tick the fixes to apply. Unticked ones are recorded as not chosen.'));
+      if (applicable && !ids.length && !busy) actions.append(el('span', { class: 'ar-hint' }, 'Choose an answer fix or tick a text edit. Options not chosen are recorded as such.'));
       card.append(actions);
       if (forms.has(item.id + ':edit')) card.append(editForm(item, errBox));
       if (forms.has(item.id + ':dismiss')) card.append(dismissForm(item, errBox));
@@ -438,7 +495,11 @@
         data.history.map(h => {
           const detail = el('td', {});
           if (h.action === 'applied') {
-            detail.append(el('div', {}, 'Chosen:'), list(h.chosen));
+            if (h.answer_fix) {
+              const a = h.chosen.find(f => f.id === h.answer_fix);
+              detail.append(el('div', {}, 'Answer fix: ', a ? [TYPE[a.type], ' (', ...fixSummary(a), ')'] : 'none'));
+            }
+            detail.append(el('div', {}, 'Chosen:'), h.chosen.length ? list(h.chosen) : el('div', {}, '(nothing else)'));
             if (h.not_chosen.length) detail.append(el('div', {}, 'Not chosen:'), list(h.not_chosen));
             const edited = Object.keys(h.edited || {});
             if (edited.length) detail.append(el('div', {}, 'Edited before applying: ', edited.join(', ')));

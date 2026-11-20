@@ -194,6 +194,9 @@ def main():
     check("Apply needs at least one ticked fix", apply(air_id, by="IG").status_code == 400)
     check("Apply refuses a fix not on the card", apply(air_id, by="IG", fix_ids=["f9"]).status_code == 400)
     check("a possible factual error has no Apply", apply(fact_id, by="IG", fix_ids=["f1"]).status_code == 400)
+    got = apply(air_id, by="IG", fix_ids=["f1", "f2", "f3"])
+    check("pointing to a FAQ and drafting a new one are alternatives: both at once is refused",
+          got.status_code == 400 and "choose one answer fix" in got.text, got.text)
     clash = [dict(typo1, id="f1"), dict(typo1, id="f2", old="Either kind of attack", new="Each attack"),
              dict(typo1, id="f3", old="Either attacks", new="Both attacks")]
     reason = m._review_fits_all(clash, air_id)
@@ -212,6 +215,7 @@ def main():
     check("history records the chosen and the not chosen",
           [f["id"] for f in a.get("chosen", [])] == ["f1", "f3"]
           and [f["id"] for f in a.get("not_chosen", [])] == ["f2", "f4"], a)
+    check("history records the answer fix picked", a.get("answer_fix") == "f1", a.get("answer_fix"))
     check("the card's fixes say so", status(air_id) == {"f1": "applied", "f2": "not_chosen",
                                                        "f3": "applied", "f4": "not_chosen"}, status(air_id))
     check("the card leaves Open", air_id not in [i["id"] for i in listing()["open"]])
@@ -261,6 +265,7 @@ def main():
     check("the history records the override, what moved, and the three not chosen",
           a["overridden"] is True and a["moved"] == moved and a["by"] == "IG"
           and [f["id"] for f in a["not_chosen"]] == ["f1", "f2", "f3"], a)
+    check("and that no answer fix was picked", a.get("answer_fix") == "none", a.get("answer_fix"))
     check("the punctuation is fixed through the normal save",
           "submerged, quieter and calmer, during" in rec("faq_1154")["text"]
           and rec("faq_1154")["display_citation"].startswith("SubmarineDocent FAQ: "))
@@ -290,6 +295,7 @@ def main():
     check("the history keeps the fix as the review sent it",
           a["edited"] == {"f1": {k: v for k, v in draft.items() if k not in ("category", "reason")}}, a["edited"])
     check("drafts alone need no check", a["checked"] == 0)
+    check("the draft is the answer fix picked", a.get("answer_fix") == "f1", a.get("answer_fix"))
     check("the unticked option is recorded as not chosen", [f["id"] for f in a["not_chosen"]] == ["f2"])
     check("a draft never answers visitors", new and all(e["chunk_id"] != new["chunk_id"] for e in m.FAQ))
     check("the draft waits under For the editor", two in [i["id"] for i in listing()["editor"]])
