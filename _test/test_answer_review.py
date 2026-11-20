@@ -212,13 +212,14 @@ def main():
     check("applied when nothing else moves", a.get("moved") == [], (card(air_id).get("check") or {}))
     check("the check covered every title, phrasing and golden question", a.get("checked", 0) > 450, a.get("checked"))
     check("the question now lands on faq_1326", [t["ok"] for t in a.get("targets", [])] == [True], a.get("targets"))
-    check("history records the chosen and the not chosen",
+    check("history records the chosen, the other answer option closed, and the text edit left open",
           [f["id"] for f in a.get("chosen", [])] == ["f1", "f3"]
-          and [f["id"] for f in a.get("not_chosen", [])] == ["f2", "f4"], a)
+          and [f["id"] for f in a.get("not_chosen", [])] == ["f2"]
+          and [f["id"] for f in a.get("left_open", [])] == ["f4"], a)
     check("history records the answer fix picked", a.get("answer_fix") == "f1", a.get("answer_fix"))
     check("the card's fixes say so", status(air_id) == {"f1": "applied", "f2": "not_chosen",
-                                                       "f3": "applied", "f4": "not_chosen"}, status(air_id))
-    check("the card leaves Open", air_id not in [i["id"] for i in listing()["open"]])
+                                                       "f3": "applied", "f4": "open"}, status(air_id))
+    check("the card stays in Open for its leftover text edit", air_id in [i["id"] for i in listing()["open"]])
     check("both records changed",
           q_air in (rec("faq_1326").get("phrasings") or [])
           and "Either kind of attack could last many hours" in rec("faq_1154")["text"])
@@ -262,10 +263,12 @@ def main():
           apply(air_id, by="IG", fix_ids=["f4"], override=True).status_code == 202)
     wait(air_id)
     a = last_action(air_id, "applied")
-    check("the history records the override, what moved, and the three not chosen",
+    check("the history records the override, what moved, and the three left open",
           a["overridden"] is True and a["moved"] == moved and a["by"] == "IG"
-          and [f["id"] for f in a["not_chosen"]] == ["f1", "f2", "f3"], a)
+          and a["not_chosen"] == [] and [f["id"] for f in a["left_open"]] == ["f1", "f2", "f3"], a)
     check("and that no answer fix was picked", a.get("answer_fix") == "none", a.get("answer_fix"))
+    check("with None chosen, the answer options stay open",
+          status(air_id) == {"f1": "open", "f2": "open", "f3": "open", "f4": "applied"}, status(air_id))
     check("the punctuation is fixed through the normal save",
           "submerged, quieter and calmer, during" in rec("faq_1154")["text"]
           and rec("faq_1154")["display_citation"].startswith("SubmarineDocent FAQ: "))
@@ -293,10 +296,11 @@ def main():
           new and new["chunk_id"].startswith("der_review_") and new["title"] == edited["title"]
           and new.get("review_for") == "editor" and new.get("source") == "answer_review", new)
     check("the history keeps the fix as the review sent it",
-          a["edited"] == {"f1": {k: v for k, v in draft.items() if k not in ("category", "reason")}}, a["edited"])
+          a["edited_from"] == {"f1": {k: v for k, v in draft.items() if k not in ("category", "reason")}}, a["edited_from"])
     check("drafts alone need no check", a["checked"] == 0)
     check("the draft is the answer fix picked", a.get("answer_fix") == "f1", a.get("answer_fix"))
-    check("the unticked option is recorded as not chosen", [f["id"] for f in a["not_chosen"]] == ["f2"])
+    check("the other answer option is recorded as not chosen and closed",
+          [f["id"] for f in a["not_chosen"]] == ["f2"] and status(two)["f2"] == "not_chosen" and a["left_open"] == [])
     check("a draft never answers visitors", new and all(e["chunk_id"] != new["chunk_id"] for e in m.FAQ))
     check("the draft waits under For the editor", two in [i["id"] for i in listing()["editor"]])
     got = client.post(f"/admin/answer-review/{two}/undo", json={"by": "IG"}, headers=admin)

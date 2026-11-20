@@ -7513,24 +7513,32 @@ def _review_apply_job(item_id: str, fixes: List[Dict[str, Any]], by: str, overri
             for change in changes:
                 change["after"] = _review_copy(change["chunk_id"])
             item = _review_get(item_id)
-            not_chosen = [f for f in item["fixes"]
-                          if f["status"] == "open" and f["type"] != "factual" and f["id"] not in fix_ids]
+            unticked = [f for f in item["fixes"]
+                        if f["status"] == "open" and f["type"] != "factual" and f["id"] not in fix_ids]
+            # Choosing an answer fix decides against the other answer options,
+            # so they close.  Text edits left unticked, and answer options when
+            # None was chosen, stay open on the card for a later apply.
+            answer_chosen = any(f["type"] in _REVIEW_ANSWER_FIXES for f in fixes)
+            not_chosen = [f for f in unticked if answer_chosen and f["type"] in _REVIEW_ANSWER_FIXES]
+            left_open = [f for f in unticked if f not in not_chosen]
             action = {"action": "applied", "at": _review_now(), "by": by,
-                      "chosen": fixes, "not_chosen": not_chosen, "edited": edited,
+                      "chosen": fixes, "not_chosen": not_chosen, "left_open": left_open,
+                      "edited_from": edited,
                       # The answer fix picked, or "none" when the card offered
                       # some and none was picked; absent when it offered none.
                       **({"answer_fix": next((f["id"] for f in fixes if f["type"] in _REVIEW_ANSWER_FIXES), "none")}
-                         if any(f["type"] in _REVIEW_ANSWER_FIXES for f in fixes + not_chosen) else {}),
+                         if any(f["type"] in _REVIEW_ANSWER_FIXES for f in fixes + unticked) else {}),
                       "changes": changes, "backup": backup, "checked": result["checked"],
                       "moved": result["moved"], "targets": result.get("targets") or [],
                       "golden": result.get("golden"), "overridden": bool(not clean and override)}
 
             def applied(i):
                 chosen = {f["id"]: f for f in fixes}
+                closed = {f["id"] for f in not_chosen}
                 for f in i["fixes"]:
                     if f["id"] in chosen:
                         f.update(chosen[f["id"]], status="applied")
-                    elif f["status"] == "open" and f["type"] != "factual":
+                    elif f["id"] in closed and f["status"] == "open":
                         f["status"] = "not_chosen"
                 i["check"] = {"state": "applied", "started": started_at, "finished": _review_now(),
                               "result": result, "fix_ids": fix_ids}
@@ -7652,7 +7660,8 @@ async def answer_review_resolve(item_id: str, fix_id: str, request: Request):
 @app.post("/admin/answer-review/{item_id}/undo")
 async def answer_review_undo(item_id: str, request: Request):
     """Put every record the card's last apply changed back as it was, if
-    nobody has changed one since.  Its chosen and not-chosen fixes reopen."""
+    nobody has changed one since.  Its chosen and not-chosen fixes reopen;
+    the ones it left open are open already."""
     body = await _review_body(request)
     by = _review_by(body)
     with _answer_review_lock:

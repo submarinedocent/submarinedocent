@@ -110,8 +110,9 @@
       One card per visitor question the daily review flagged, with every fix it suggested. Choose one
       answer fix or None, tick any text edits, and press Apply: the page checks that they still fit,
       then measures what every FAQ title, phrasing and golden question would answer after them, and
-      writes only if nothing else moves. Options not chosen are recorded as such. Every apply backs up
-      the FAQ file first and can be undone from History.
+      writes only if nothing else moves. Choosing an answer fix closes the other answer options as not
+      chosen; text edits left unticked stay open on the card. Every apply backs up the FAQ file first
+      and can be undone from History.
     </p>
     <p class="ar-back"><a href="/web/edit.html">&larr; Editor hub</a></p>
 
@@ -269,7 +270,7 @@
       return el('div', { class: 'ar-option' },
         el('input', { type: 'radio', name, checked, disabled: busy, 'aria-label': 'No answer fix', onchange }),
         el('div', {}, el('div', { class: 'ar-option-head' }, 'None'),
-          el('div', { class: 'ar-hint' }, 'Leave the answer as it is. Any answer option here is recorded as not chosen.')));
+          el('div', { class: 'ar-hint' }, 'Leave the answer as it is. The answer options stay open on the card.')));
     }
 
     function option(item, f, n, busy, errBox) {
@@ -500,9 +501,10 @@
               detail.append(el('div', {}, 'Answer fix: ', a ? [TYPE[a.type], ' (', ...fixSummary(a), ')'] : 'none'));
             }
             detail.append(el('div', {}, 'Chosen:'), h.chosen.length ? list(h.chosen) : el('div', {}, '(nothing else)'));
-            if (h.not_chosen.length) detail.append(el('div', {}, 'Not chosen:'), list(h.not_chosen));
-            const edited = Object.keys(h.edited || {});
-            if (edited.length) detail.append(el('div', {}, 'Edited before applying: ', edited.join(', ')));
+            if (h.not_chosen.length) detail.append(el('div', {}, 'Not chosen (closed):'), list(h.not_chosen));
+            if ((h.left_open || []).length) detail.append(el('div', {}, 'Left open:'), list(h.left_open));
+            const edited = Object.keys(h.edited_from || {});
+            if (edited.length) detail.append(el('div', {}, 'Edited before applying (review wording kept as edited_from): ', edited.join(', ')));
             detail.append(el('div', {}, 'Changed: ', h.changes.map(c => `${c.chunk_id} (${changedFields(c.before, c.after).join(', ') || 'nothing'})`).join('; ')));
             detail.append(el('div', {}, h.checked ? `Checked ${h.checked} questions, ${h.moved.length} moved` : 'No check needed (drafts only)',
               h.golden ? `; golden ${h.golden.before} → ${h.golden.after} of ${h.golden.total}` : ''));
