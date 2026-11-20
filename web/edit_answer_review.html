@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Answer review: SubmarineDocent admin</title>
+  <link rel="icon" type="image/svg+xml" href="/web/favicon.svg">
+  <style>
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+    }
+
+    .ar-wrap { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { font-size: 20px; color: #e6edf3; margin: 0 0 4px; }
+    .ar-sub { font-size: 13px; color: #8b949e; margin: 0 0 6px; }
+    .ar-back { font-size: 13px; }
+    a { color: #58a6ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .ar-bar {
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+      margin: 18px 0 4px;
+    }
+    .ar-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ar-tab {
+      background: transparent; color: #8b949e; border: 1px solid #30363d; border-radius: 999px;
+      padding: 5px 12px; font-size: 13px; cursor: pointer;
+    }
+    .ar-tab[aria-selected="true"] { color: #e6edf3; border-color: #58a6ff; background: rgba(88, 166, 255, 0.12); }
+    .ar-who { font-size: 13px; color: #8b949e; }
+    .ar-who input { width: 64px; }
+
+    input, textarea, select {
+      background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px;
+      padding: 5px 8px; font: inherit; font-size: 13px; box-sizing: border-box;
+    }
+    textarea { width: 100%; min-height: 64px; }
+    label { display: block; font-size: 12px; color: #8b949e; margin: 8px 0 3px; }
+
+    .ar-item {
+      border: 1px solid #30363d; border-radius: 10px; background: rgba(255, 255, 255, 0.03);
+      padding: 14px 16px; margin: 14px 0 0;
+    }
+    .ar-q { font-size: 15px; color: #e6edf3; font-weight: 600; margin: 0 0 2px; overflow-wrap: anywhere; }
+    .ar-asked { font-size: 12px; color: #8b949e; margin-bottom: 10px; }
+    .ar-row { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 8px; font-size: 13px; margin: 4px 0; }
+    .ar-row > span:first-child { color: #8b949e; }
+    .ar-row > span:last-child { overflow-wrap: anywhere; }
+    code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .ar-ctx { background: #0f141b; border: 1px solid #21262d; border-radius: 6px; padding: 6px 8px; white-space: pre-wrap; }
+    mark.del { background: rgba(248, 81, 73, 0.25); color: #ffa198; }
+    mark.ins { background: rgba(63, 185, 80, 0.25); color: #7ee787; }
+
+    .ar-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    button.ar-btn {
+      border: 1px solid #30363d; background: #21262d; color: #e6edf3; border-radius: 6px;
+      padding: 6px 12px; font-size: 13px; cursor: pointer; white-space: nowrap;
+    }
+    button.ar-btn.primary { background: #238636; border-color: #2ea043; }
+    button.ar-btn.warn { background: #9e6a03; border-color: #bb8009; }
+    button.ar-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .ar-note { font-size: 13px; margin-top: 10px; padding: 8px 10px; border-radius: 6px; }
+    .ar-note.info { background: rgba(88, 166, 255, 0.10); }
+    .ar-note.ok { background: rgba(63, 185, 80, 0.12); }
+    .ar-note.bad { background: rgba(248, 81, 73, 0.12); }
+    .ar-form { margin-top: 10px; padding: 10px; border: 1px dashed #30363d; border-radius: 8px; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #8b949e;
+         border-bottom: 1px solid #30363d; padding: 5px 6px; font-weight: 600; }
+    td { font-size: 12px; padding: 5px 6px; border-bottom: 1px solid #21262d; vertical-align: top; overflow-wrap: anywhere; }
+
+    .pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+    .pill.applied { background: rgba(63, 185, 80, 0.15); color: #56d364; }
+    .pill.dismissed, .pill.undone { background: rgba(139, 148, 158, 0.15); color: #8b949e; }
+    .pill.resolved { background: rgba(88, 166, 255, 0.15); color: #79c0ff; }
+    .pill.over { background: rgba(187, 128, 9, 0.2); color: #e3b341; }
+    .ar-empty { color: #8b949e; font-size: 14px; padding: 24px 0; }
+    .ar-err { color: #ffa198; font-size: 13px; margin-top: 8px; }
+
+    @media (max-width: 600px) {
+      .ar-row { grid-template-columns: 1fr; gap: 0; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="ar-wrap">
+    <h1>Answer review</h1>
+    <p class="ar-sub">
+      What the daily review of visitors' questions found, with a suggested fix for each. Apply checks
+      that the fix still fits, then measures what every FAQ title, phrasing and golden question would
+      answer after it. It writes only if nothing else moves. Every apply backs up the FAQ file first
+      and can be undone from History.
+    </p>
+    <p class="ar-back"><a href="/web/edit.html">&larr; Editor hub</a></p>
+
+    <div class="ar-bar">
+      <div class="ar-tabs" role="tablist">
+        <button class="ar-tab" role="tab" data-tab="open" aria-selected="true">Open</button>
+        <button class="ar-tab" role="tab" data-tab="editor" aria-selected="false">For the editor</button>
+        <button class="ar-tab" role="tab" data-tab="history" aria-selected="false">History</button>
+      </div>
+      <label class="ar-who">Your initials <input id="ar-initials" maxlength="20" autocomplete="off"></label>
+    </div>
+    <div id="ar-list"><p class="ar-empty">Loading…</p></div>
+  </div>
+
+  <script>
+    const API = '';
+    let data = { open: [], editor: [], history: [] };
+    let tab = 'open';
+    const editing = new Set();
+    let pollTimer = null;
+
+    const initials = document.getElementById('ar-initials');
+    try { initials.value = localStorage.getItem('answerReviewInitials') || ''; } catch (e) { }
+    initials.addEventListener('input', () => {
+      try { localStorage.setItem('answerReviewInitials', initials.value.trim()); } catch (e) { }
+    });
+
+    function el(tag, attrs, ...kids) {
+      const node = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs || {})) {
+        if (k === 'class') node.className = v;
+        else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
+        else if (v !== undefined && v !== null && v !== false) node.setAttribute(k, v === true ? '' : v);
+      }
+      for (const kid of kids.flat()) {
+        if (kid === null || kid === undefined || kid === false) continue;
+        node.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+      }
+      return node;
+    }
+    const row = (label, ...value) => el('div', { class: 'ar-row' }, el('span', {}, label), el('span', {}, ...value));
+
+    function marked(ctx, cls) {
+      const t = ctx.text, [s, e] = ctx.mark;
+      return el('div', { class: 'ar-ctx' }, t.slice(0, s), el('mark', { class: cls }, t.slice(s, e) || '(nothing)'), t.slice(e));
+    }
+
+    const OUTCOME = {
+      manual: 'an answer from the 1946 manual', fallback: 'no answer (the floor refused it)',
+      refusal: 'no answer (nothing matched)', short_query: 'a prompt to ask in full',
+    };
+    function got(item) {
+      const g = item.got;
+      if (g.outcome === 'record') return [el('code', {}, g.faq_id || '?'), ' ', item.got_title || ''];
+      return [OUTCOME[g.outcome] || g.outcome, g.source_id ? [' ', el('code', {}, g.source_id)] : null];
+    }
+    const CATEGORY = {
+      wrong_answer: 'wrong answer', no_answer: 'no answer', partial_answer: 'partial answer',
+      typo: 'typo', wording: 'wording', factual: 'possible factual error',
+    };
+
+    function who() { return initials.value.trim(); }
+
+    async function call(path, body) {
+      const res = await fetch(API + path, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}),
+      });
+      let payload = {};
+      try { payload = await res.json(); } catch (e) { }
+      if (!res.ok) throw new Error(payload.detail || ('HTTP ' + res.status));
+      return payload;
+    }
+
+    async function act(path, body, errBox) {
+      if (!who()) { errBox.textContent = 'Enter your initials at the top first.'; initials.focus(); return; }
+      errBox.textContent = '';
+      try {
+        await call(path, Object.assign({ by: who() }, body || {}));
+        await load();
+      } catch (e) { errBox.textContent = e.message; }
+    }
+
+    function fixDescription(item) {
+      const f = item.fix;
+      if (f.type === 'point_to_faq') {
+        return [row('Fix', 'Point to ', el('code', {}, f.faq_id), ' ', item.target_title || ''),
+                row('', 'Adds the phrasing "', f.phrasing, '" to ', el('code', {}, f.faq_id), '.')];
+      }
+      if (f.type === 'text_edit') {
+        const where = f.field === 'title' ? 'title' : 'answer text';
+        const out = [row('Fix', 'Edit the ', where, ' of ', el('code', {}, f.faq_id), ' ', item.target_title || '')];
+        if (item.before) {
+          out.push(row('Before', marked(item.before, 'del')));
+          out.push(row('After', marked(item.after, 'ins')));
+        } else {
+          out.push(row('Before', el('div', { class: 'ar-ctx' }, f.old)), row('After', el('div', { class: 'ar-ctx' }, f.new)));
+        }
+        return out;
+      }
+      if (f.type === 'new_faq') {
+        return [row('Fix', 'New FAQ draft "', f.title, '" for the editor', f.category ? ' in ' + f.category : ''),
+                f.note ? row('Note', f.note) : null];
+      }
+      return [row('Record', el('code', {}, f.faq_id), ' ', item.target_title || ''),
+              row('Quote', el('div', { class: 'ar-ctx' }, f.quote)),
+              row('Concern', f.concern), f.source ? row('Source', f.source) : null];
+    }
+
+    function checkBox(item) {
+      const c = item.check;
+      if (!c) return null;
+      if (c.state === 'checking') {
+        return el('div', { class: 'ar-note info' }, 'Checking every FAQ title, phrasing and golden question… (about a minute)');
+      }
+      if (c.state === 'no_longer_fits' || c.state === 'changed_during_check') {
+        return el('div', { class: 'ar-note bad' }, 'Not applied: ', c.reason);
+      }
+      if (c.state === 'failed') return el('div', { class: 'ar-note bad' }, 'Not applied: ', c.error || 'the check failed');
+      if (c.state !== 'moves') return null;
+      const r = c.result || {};
+      const box = el('div', { class: 'ar-note bad' });
+      box.append(el('div', {}, 'Not applied. Checked ', r.checked, ' questions in ', r.seconds, ' s.'));
+      if (r.target && !r.target.ok) {
+        box.append(el('div', {}, 'The question still lands on ', el('code', {}, r.target.after), ', not ', el('code', {}, r.target.faq_id), '.'));
+      }
+      if (r.moved && r.moved.length) {
+        box.append(el('div', {}, r.moved.length, ' other question(s) would change answer:'));
+        box.append(el('table', {},
+          el('tr', {}, el('th', {}, 'Question'), el('th', {}, 'Is'), el('th', {}, 'Now'), el('th', {}, 'After')),
+          r.moved.map(m => el('tr', {}, el('td', {}, m.question), el('td', {}, m.kinds.join(', ')),
+            el('td', { class: 'mono' }, m.before), el('td', { class: 'mono' }, m.after)))));
+      }
+      if (r.golden) box.append(el('div', {}, 'Golden questions right: ', r.golden.before, ' now, ', r.golden.after, ' after, of ', r.golden.total, '.'));
+      const anyway = el('input', { maxlength: 20, placeholder: 'initials', 'aria-label': 'Initials to apply anyway' });
+      const err = el('div', { class: 'ar-err' });
+      box.append(el('div', { class: 'ar-form' },
+        el('label', {}, 'Apply anyway: the history will record that you saw these and overrode the check. Type your initials.'),
+        anyway, ' ',
+        el('button', {
+          class: 'ar-btn warn', onclick: () => {
+            if (!anyway.value.trim()) { err.textContent = 'Initials are required to apply anyway.'; return; }
+            err.textContent = '';
+            call(`/admin/answer-review/${item.id}/apply`, { by: anyway.value.trim(), override: true, fix: c.fix })
+              .then(load).catch(e => { err.textContent = e.message; });
+          }
+        }, 'Apply anyway'), err));
+      return box;
+    }
+
+    function editForm(item, errBox) {
+      const f = item.fix;
+      const fields = {};
+      const input = (name, value, multi) => {
+        fields[name] = multi ? el('textarea', {}, value || '') : el('input', { value: value || '', style: 'width:100%' });
+        return [el('label', {}, name), fields[name]];
+      };
+      const form = el('div', { class: 'ar-form' });
+      if (f.type === 'point_to_faq') form.append(...input('faq_id', f.faq_id), ...input('phrasing', f.phrasing));
+      if (f.type === 'text_edit') {
+        form.append(...input('faq_id', f.faq_id));
+        fields.field = el('select', {}, el('option', { value: 'text', selected: f.field === 'text' }, 'text'),
+                          el('option', { value: 'title', selected: f.field === 'title' }, 'title'));
+        form.append(el('label', {}, 'field'), fields.field, ...input('old', f.old, true), ...input('new', f.new, true));
+      }
+      if (f.type === 'new_faq') form.append(...input('title', f.title), ...input('category', f.category), ...input('note', f.note, true));
+      form.append(el('div', { class: 'ar-actions' },
+        el('button', {
+          class: 'ar-btn primary', onclick: () => {
+            const fix = { type: f.type };
+            for (const [k, node] of Object.entries(fields)) fix[k] = node.value;
+            editing.delete(item.id);
+            act(`/admin/answer-review/${item.id}/apply`, { fix }, errBox);
+          }
+        }, 'Apply this version'),
+        el('button', { class: 'ar-btn', onclick: () => { editing.delete(item.id); render(); } }, 'Cancel')));
+      return form;
+    }
+
+    function dismissForm(item, errBox, verb) {
+      const reason = el('input', { style: 'width:100%', placeholder: verb === 'resolve' ? 'What was found or done' : 'Why' });
+      return el('div', { class: 'ar-form' },
+        el('label', {}, verb === 'resolve' ? 'Resolve with a note' : 'Dismiss: one line on why'), reason,
+        el('div', { class: 'ar-actions' },
+          el('button', {
+            class: 'ar-btn', onclick: () => act(`/admin/answer-review/${item.id}/${verb}`,
+              verb === 'resolve' ? { note: reason.value } : { reason: reason.value }, errBox)
+          }, verb === 'resolve' ? 'Resolve' : 'Dismiss'),
+          el('button', { class: 'ar-btn', onclick: () => { editing.delete(item.id + verb); render(); } }, 'Cancel')));
+    }
+
+    function itemCard(item) {
+      const card = el('div', { class: 'ar-item' });
+      const a = item.asked || {};
+      card.append(el('p', { class: 'ar-q' }, item.question),
+        el('div', { class: 'ar-asked' }, `asked ${a.on_date || 0} on ${a.date}, ${a.total || 0} in all (from the question log)`));
+      if (item.wordings && item.wordings.length > 1) card.append(row('Wordings', item.wordings.join(' · ')));
+      card.append(row('Got', ...got(item)), row('Problem', CATEGORY[item.category] || item.category));
+      card.append(...fixDescription(item).filter(Boolean));
+      if (item.reason) card.append(row('Why', item.reason));
+      const errBox = el('div', { class: 'ar-err' });
+
+      if (item.draft) {
+        card.append(el('div', { class: 'ar-note info' }, 'Draft ', el('code', {}, item.draft.chunk_id),
+          ' is waiting for its answer in ', el('a', { href: '/web/review.html' }, 'FAQ Review'), '.'));
+        return card;
+      }
+      if (item.fits) card.append(el('div', { class: 'ar-note bad' }, 'No longer fits: ', item.fits));
+      const box = checkBox(item);
+      if (box) card.append(box);
+      const busy = item.check && item.check.state === 'checking';
+      const actions = el('div', { class: 'ar-actions' });
+      if (item.fix.type === 'factual') {
+        actions.append(
+          el('button', { class: 'ar-btn primary', onclick: () => { editing.add(item.id + 'resolve'); render(); } }, 'Resolve'),
+          el('button', { class: 'ar-btn', onclick: () => { editing.add(item.id + 'dismiss'); render(); } }, 'Dismiss'));
+      } else {
+        actions.append(
+          el('button', {
+            class: 'ar-btn primary', disabled: busy || !!item.fits,
+            onclick: () => act(`/admin/answer-review/${item.id}/apply`, {}, errBox)
+          }, 'Apply'),
+          el('button', { class: 'ar-btn', disabled: busy, onclick: () => { editing.add(item.id); render(); } }, 'Edit then apply'),
+          el('button', { class: 'ar-btn', disabled: busy, onclick: () => { editing.add(item.id + 'dismiss'); render(); } }, 'Dismiss'));
+      }
+      card.append(actions);
+      if (editing.has(item.id)) card.append(editForm(item, errBox));
+      if (editing.has(item.id + 'dismiss')) card.append(dismissForm(item, errBox, 'dismiss'));
+      if (editing.has(item.id + 'resolve')) card.append(dismissForm(item, errBox, 'resolve'));
+      card.append(errBox);
+      return card;
+    }
+
+    function changedFields(before, after) {
+      if (!before) return after ? ['new draft ' + after.chunk_id] : [];
+      if (!after) return ['removed'];
+      const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+      return [...keys].filter(k => JSON.stringify(before[k]) !== JSON.stringify(after[k]));
+    }
+
+    function historyTable() {
+      if (!data.history.length) return el('p', { class: 'ar-empty' }, 'Nothing applied, dismissed or resolved yet.');
+      return el('table', {},
+        el('tr', {}, el('th', {}, 'When'), el('th', {}, 'Who'), el('th', {}, 'What'), el('th', {}, 'Question'), el('th', {}, 'Detail'), el('th', {}, '')),
+        data.history.map(h => {
+          const detail = el('td', {});
+          if (h.action === 'applied') {
+            const f = h.fix;
+            if (f.type === 'point_to_faq') detail.append('Phrasing "', f.phrasing, '" on ', el('code', {}, f.faq_id));
+            if (f.type === 'text_edit') detail.append(el('code', {}, f.faq_id), ' ', f.field, ': ', el('mark', { class: 'del' }, f.old), ' → ', el('mark', { class: 'ins' }, f.new || '(nothing)'));
+            if (f.type === 'new_faq') detail.append('Draft ', el('code', {}, h.chunk_id), ' "', f.title, '"');
+            detail.append(el('div', {}, 'Changed: ', changedFields(h.before, h.after).join(', ') || 'nothing'));
+            detail.append(el('div', {}, h.checked ? `Checked ${h.checked} questions, ${h.moved.length} moved` : 'No check needed (draft)',
+              h.golden ? `; golden ${h.golden.before} → ${h.golden.after} of ${h.golden.total}` : ''));
+            if (h.overridden) detail.append(el('div', {}, el('span', { class: 'pill over' }, 'check overridden'), ' ',
+              h.moved.map(m => `${m.question}: ${m.before} → ${m.after}`).join('; ')));
+            if (h.edited_from) detail.append(el('div', {}, 'Edited before applying'));
+            detail.append(el('div', { class: 'mono' }, 'Backup: ', h.backup));
+          } else if (h.action === 'undone') {
+            detail.append('Restored ', el('code', {}, h.chunk_id), ' as it was before the apply of ', h.undid);
+            detail.append(el('div', { class: 'mono' }, 'Backup: ', h.backup));
+          } else {
+            detail.append(h.reason || h.note || '');
+          }
+          const err = el('div', { class: 'ar-err' });
+          const undo = h.can_undo ? el('button', {
+            class: 'ar-btn', onclick: () => act(`/admin/answer-review/${h.item_id}/undo`, {}, err)
+          }, 'Undo') : '';
+          return el('tr', {}, el('td', { class: 'mono' }, h.at), el('td', {}, h.by || ''),
+            el('td', {}, el('span', { class: 'pill ' + h.action }, h.action)), el('td', {}, h.question), detail, el('td', {}, undo, err));
+        }));
+    }
+
+    function render() {
+      document.querySelectorAll('.ar-tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+      const counts = { open: data.open.length, editor: data.editor.length, history: data.history.length };
+      document.querySelectorAll('.ar-tab').forEach(b => {
+        b.textContent = { open: 'Open', editor: 'For the editor', history: 'History' }[b.dataset.tab] + ` (${counts[b.dataset.tab]})`;
+      });
+      const list = document.getElementById('ar-list');
+      list.replaceChildren();
+      if (tab === 'history') { list.append(historyTable()); return; }
+      const items = data[tab];
+      if (!items.length) {
+        list.append(el('p', { class: 'ar-empty' }, tab === 'open' ? 'Nothing open.' : 'Nothing waiting for the editor.'));
+        return;
+      }
+      items.forEach(i => list.append(itemCard(i)));
+    }
+
+    async function load() {
+      try {
+        const res = await fetch(API + '/admin/answer-review', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        data = await res.json();
+      } catch (e) {
+        document.getElementById('ar-list').replaceChildren(el('p', { class: 'ar-err' }, 'Could not load: ' + e.message));
+        return;
+      }
+      render();
+      clearTimeout(pollTimer);
+      const checking = [...data.open, ...data.editor].some(i => i.check && i.check.state === 'checking');
+      if (checking) pollTimer = setTimeout(load, 2000);
+    }
+
+    document.querySelectorAll('.ar-tab').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; render(); }));
+    load();
+  </script>
+  <script src="/web/admin-env-banner.js"></script>
+</body>
+
+</html>

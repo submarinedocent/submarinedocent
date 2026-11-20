@@ -136,6 +136,9 @@ jobs:
         env:
           CONTENT_ROOT: corpora
 
+      - name: Answer review intake, apply, check and undo
+        run: python3 _test/test_answer_review.py
+
       - name: Eternal Patrol prior history test
         run: python3 _test/test_eternal_patrol_prior_history.py
 
