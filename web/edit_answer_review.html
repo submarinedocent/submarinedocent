@@ -312,7 +312,7 @@
             el('td', { class: 'mono' }, m.before), el('td', { class: 'mono' }, m.after)))));
       }
       if (r.golden) box.append(el('div', {}, `Golden questions right: ${r.golden.before} now, ${r.golden.after} after, of ${r.golden.total}.`));
-      const anyway = el('input', { maxlength: 20, placeholder: 'initials', value: lastInitials(), 'aria-label': 'Initials to apply anyway' });
+      const anyway = el('input', { maxlength: 20, placeholder: 'initials', 'aria-label': 'Initials to apply anyway' });
       const err = el('div', { class: 'ar-err' });
       box.append(el('div', { class: 'ar-form' },
         el('label', {}, 'Apply anyway: the history will record that you saw these and overrode the check. Type your initials.'),
