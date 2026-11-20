@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Answer review: SubmarineDocent admin</title>
+  <link rel="icon" type="image/svg+xml" href="/web/favicon.svg">
+  <style>
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+    }
+
+    .ar-wrap { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { font-size: 20px; color: #e6edf3; margin: 0 0 4px; }
+    .ar-sub { font-size: 13px; color: #8b949e; margin: 0 0 6px; }
+    .ar-back { font-size: 13px; }
+    a { color: #58a6ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .ar-bar {
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+      margin: 18px 0 4px;
+    }
+    .ar-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ar-tab {
+      background: transparent; color: #8b949e; border: 1px solid #30363d; border-radius: 999px;
+      padding: 5px 12px; font-size: 13px; cursor: pointer;
+    }
+    .ar-tab[aria-selected="true"] { color: #e6edf3; border-color: #58a6ff; background: rgba(88, 166, 255, 0.12); }
+    .ar-who { font-size: 13px; color: #8b949e; }
+    .ar-who input { width: 64px; }
+
+    input, textarea, select {
+      background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px;
+      padding: 5px 8px; font: inherit; font-size: 13px; box-sizing: border-box;
+    }
+    textarea { width: 100%; min-height: 64px; }
+    label { display: block; font-size: 12px; color: #8b949e; margin: 8px 0 3px; }
+
+    .ar-item {
+      border: 1px solid #30363d; border-radius: 10px; background: rgba(255, 255, 255, 0.03);
+      padding: 14px 16px; margin: 14px 0 0;
+    }
+    .ar-q { font-size: 15px; color: #e6edf3; font-weight: 600; margin: 0 0 2px; overflow-wrap: anywhere; }
+    .ar-asked { font-size: 12px; color: #8b949e; margin-bottom: 10px; }
+    .ar-row { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 8px; font-size: 13px; margin: 4px 0; }
+    .ar-row > span:first-child { color: #8b949e; }
+    .ar-row > span:last-child { overflow-wrap: anywhere; }
+    code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .ar-ctx { background: #0f141b; border: 1px solid #21262d; border-radius: 6px; padding: 6px 8px; white-space: pre-wrap; }
+    mark.del { background: rgba(248, 81, 73, 0.25); color: #ffa198; }
+    mark.ins { background: rgba(63, 185, 80, 0.25); color: #7ee787; }
+
+    .ar-options { font-size: 12px; color: #8b949e; margin: 14px 0 0; text-transform: uppercase; letter-spacing: 0.05em; }
+    .ar-option {
+      display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 4px;
+      border: 1px solid #21262d; border-radius: 8px; padding: 10px 10px 8px 6px; margin: 8px 0 0;
+      background: rgba(0, 0, 0, 0.15);
+    }
+    .ar-option.closed { opacity: 0.6; }
+    .ar-option input[type="checkbox"], .ar-option input[type="radio"] { width: 18px; height: 18px; margin: 2px 0 0 4px; accent-color: #2ea043; }
+    .ar-group { font-size: 12px; color: #c9d1d9; margin: 14px 0 0; font-weight: 600; }
+    .ar-group span { color: #8b949e; font-weight: 400; }
+    .ar-option-head { font-size: 13px; color: #e6edf3; font-weight: 600; margin-bottom: 4px; }
+
+    .ar-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+    button.ar-btn {
+      border: 1px solid #30363d; background: #21262d; color: #e6edf3; border-radius: 6px;
+      padding: 6px 12px; font-size: 13px; cursor: pointer; white-space: nowrap;
+    }
+    button.ar-btn.primary { background: #238636; border-color: #2ea043; }
+    button.ar-btn.warn { background: #9e6a03; border-color: #bb8009; }
+    button.ar-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .ar-hint { font-size: 12px; color: #8b949e; }
+
+    .ar-note { font-size: 13px; margin-top: 10px; padding: 8px 10px; border-radius: 6px; }
+    .ar-note.info { background: rgba(88, 166, 255, 0.10); }
+    .ar-note.bad { background: rgba(248, 81, 73, 0.12); }
+    .ar-form { margin-top: 10px; padding: 10px; border: 1px dashed #30363d; border-radius: 8px; }
+    .ar-form .ar-option { background: transparent; }
+    /* While Edit then apply is open, the rest of the card is locked and dimmed,
+       and the form's buttons stay in view at the bottom of the window. */
+    .ar-locked { opacity: 0.4; }
+    .ar-form .ar-actions.sticky {
+      position: sticky; bottom: 0; background: #0d1117; margin: 12px -10px -10px; padding: 10px;
+      border-top: 1px solid #30363d; border-radius: 0 0 8px 8px;
+    }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #8b949e;
+         border-bottom: 1px solid #30363d; padding: 5px 6px; font-weight: 600; }
+    td { font-size: 12px; padding: 5px 6px; border-bottom: 1px solid #21262d; vertical-align: top; overflow-wrap: anywhere; }
+    td ul { margin: 2px 0; padding-left: 18px; }
+
+    .pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; font-weight: 400; }
+    .pill.applied { background: rgba(63, 185, 80, 0.15); color: #56d364; }
+    .pill.not_chosen, .pill.dismissed, .pill.undone { background: rgba(139, 148, 158, 0.15); color: #8b949e; }
+    .pill.resolved, .pill.editor { background: rgba(88, 166, 255, 0.15); color: #79c0ff; }
+    .pill.over { background: rgba(187, 128, 9, 0.2); color: #e3b341; }
+    .ar-empty { color: #8b949e; font-size: 14px; padding: 24px 0; }
+    .ar-err { color: #ffa198; font-size: 13px; margin-top: 8px; }
+
+    @media (max-width: 600px) {
+      .ar-row { grid-template-columns: 1fr; gap: 0; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="ar-wrap">
+    <h1>Answer review</h1>
+    <p class="ar-sub">
+      One card per visitor question the daily review flagged, with every fix it suggested. Choose one
+      answer fix or None, tick any text edits, and press Apply: the page checks that they still fit,
+      then measures what every FAQ title, phrasing and golden question would answer after them, and
+      writes only if nothing else moves. Choosing an answer fix closes the other answer options as not
+      chosen; text edits left unticked stay open on the card. Every apply backs up the FAQ file first
+      and can be undone from History.
+    </p>
+    <p class="ar-back"><a href="/web/edit.html">&larr; Editor hub</a></p>
+
+    <div class="ar-bar">
+      <div class="ar-tabs" role="tablist">
+        <button class="ar-tab" role="tab" data-tab="open" aria-selected="true">Open</button>
+        <button class="ar-tab" role="tab" data-tab="editor" aria-selected="false">For the editor</button>
+        <button class="ar-tab" role="tab" data-tab="history" aria-selected="false">History</button>
+      </div>
+      <label class="ar-who">Your initials <input id="ar-initials" maxlength="20" autocomplete="off"></label>
+    </div>
+    <div id="ar-list"><p class="ar-empty">Loading…</p></div>
+  </div>
+
+  <script>
+    const API = '';
+    let data = { open: [], editor: [], history: [] };
+    let tab = 'open';
+    const forms = new Set();      // which card forms are open: id + ':edit' / ':dismiss' / ':resolve:f1'
+    const ticked = new Map();     // card id -> Set of ticked text-edit ids, kept across refreshes
+    const picked = new Map();     // card id -> the answer fix chosen, '' for None (the default)
+    // card id -> the Edit then apply form as typed: { answer, ticked: Set, fields: {fix id: {name: value}},
+    // start }.  Kept across refreshes and tab switches, so only Cancel or leaving the page loses it.
+    const drafts = new Map();
+    let scrollToForm = null;      // card id whose edit form was just opened
+    // Pointing to a better FAQ and drafting a new one are alternatives: choose one or none.
+    const isAnswer = f => f.type === 'point_to_faq' || f.type === 'new_faq';
+    const usable = f => f && f.status === 'open' && f.type !== 'factual' && !f.fits;
+    let pollTimer = null;
+
+    // The last initials used in this browser, filled in for the next action and
+    // still editable.  Kept in this browser only; the server stores initials
+    // with each action it records, never as a setting.
+    const INITIALS_KEY = 'answerReviewInitials';
+    const initials = document.getElementById('ar-initials');
+    function lastInitials() {
+      try { return localStorage.getItem(INITIALS_KEY) || ''; } catch (e) { return ''; }
+    }
+    function rememberInitials(value) {
+      try { if (value) localStorage.setItem(INITIALS_KEY, value); } catch (e) { }
+      if (value && document.activeElement !== initials) initials.value = value;
+    }
+    initials.value = lastInitials();
+
+    function el(tag, attrs, ...kids) {
+      const node = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs || {})) {
+        if (k === 'class') node.className = v;
+        else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
+        else if (k === 'checked') node.checked = !!v;
+        else if (v !== undefined && v !== null && v !== false) node.setAttribute(k, v === true ? '' : v);
+      }
+      for (const kid of kids.flat()) {
+        if (kid === null || kid === undefined || kid === false) continue;
+        node.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+      }
+      return node;
+    }
+    const row = (label, ...value) => el('div', { class: 'ar-row' }, el('span', {}, label), el('span', {}, ...value));
+
+    function marked(ctx, cls) {
+      const t = ctx.text, [s, e] = ctx.mark;
+      return el('div', { class: 'ar-ctx' }, t.slice(0, s), el('mark', { class: cls }, t.slice(s, e) || '(nothing)'), t.slice(e));
+    }
+
+    const OUTCOME = {
+      manual: 'an answer from the 1946 manual', fallback: 'no answer (the floor refused it)',
+      refusal: 'no answer (nothing matched)', short_query: 'a prompt to ask in full',
+    };
+    const CATEGORY = {
+      wrong_answer: 'wrong answer', no_answer: 'no answer', partial_answer: 'partial answer',
+      typo: 'typo', wording: 'wording', factual: 'possible factual error',
+    };
+    const STATUS = { applied: 'applied', not_chosen: 'not chosen', dismissed: 'dismissed', resolved: 'resolved' };
+    const TYPE = { point_to_faq: 'Point to a better FAQ', text_edit: 'Text edit', new_faq: 'New FAQ draft', factual: 'For the editor' };
+
+    function got(item) {
+      const g = item.got;
+      if (g.outcome === 'record') return [el('code', {}, g.faq_id || '?'), ' ', item.got_title || ''];
+      return [OUTCOME[g.outcome] || g.outcome, g.source_id ? [' ', el('code', {}, g.source_id)] : null];
+    }
+
+    function who() { return initials.value.trim(); }
+
+    async function call(path, body) {
+      const res = await fetch(API + path, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}),
+      });
+      let payload = {};
+      try { payload = await res.json(); } catch (e) { }
+      if (!res.ok) throw new Error(payload.detail || ('HTTP ' + res.status));
+      return payload;
+    }
+
+    async function act(path, body, errBox, after) {
+      if (!who()) { errBox.textContent = 'Enter your initials at the top first.'; initials.focus(); return; }
+      errBox.textContent = '';
+      try {
+        await call(path, Object.assign({ by: who() }, body || {}));
+        rememberInitials(who());
+        if (after) after();
+        await load(true);
+      } catch (e) { errBox.textContent = e.message; }
+    }
+
+    function fixSummary(f) {
+      if (f.type === 'point_to_faq') return ['phrasing "', f.phrasing, '" on ', el('code', {}, f.faq_id)];
+      if (f.type === 'text_edit') return [el('code', {}, f.faq_id), ' ', f.field, ': ', el('mark', { class: 'del' }, f.old), ' → ', el('mark', { class: 'ins' }, f.new || '(nothing)')];
+      if (f.type === 'new_faq') return ['draft "', f.title, '"'];
+      return [el('code', {}, f.faq_id), ': ', f.concern];
+    }
+
+    function fixDetail(item, f) {
+      const out = [row('Problem', CATEGORY[f.category] || f.category)];
+      if (f.type === 'point_to_faq') {
+        out.push(row('Fix', 'Point to ', el('code', {}, f.faq_id), ' ', f.target_title || ''),
+                 row('', 'Adds the phrasing "', f.phrasing, '" to ', el('code', {}, f.faq_id), '.'));
+      } else if (f.type === 'text_edit') {
+        out.push(row('Fix', 'Edit the ', f.field === 'title' ? 'title' : 'answer text', ' of ', el('code', {}, f.faq_id), ' ', f.target_title || ''));
+        if (f.before) out.push(row('Before', marked(f.before, 'del')), row('After', marked(f.after, 'ins')));
+        else out.push(row('Before', el('div', { class: 'ar-ctx' }, f.old)), row('After', el('div', { class: 'ar-ctx' }, f.new)));
+      } else if (f.type === 'new_faq') {
+        out.push(row('Fix', 'New FAQ draft "', f.title, '" for the editor', f.category_title ? ' in ' + f.category_title : ''));
+        if (f.note) out.push(row('Note', f.note));
+      } else {
+        out.push(row('Record', el('code', {}, f.faq_id), ' ', f.target_title || ''),
+                 row('Quote', el('div', { class: 'ar-ctx' }, f.quote)), row('Concern', f.concern));
+        if (f.source) out.push(row('Source', f.source));
+      }
+      if (f.reason) out.push(row('Why', f.reason));
+      if (f.fits) out.push(el('div', { class: 'ar-note bad' }, 'No longer fits: ', f.fits));
+      if (f.draft && f.draft.exists && !f.draft.written) {
+        out.push(el('div', { class: 'ar-note info' }, 'Draft ', el('code', {}, f.draft.chunk_id),
+          ' is waiting for its answer in ', el('a', { href: '/web/review.html' }, 'FAQ Review'), '.'));
+      }
+      return out;
+    }
+
+    function tickSet(item) {
+      if (!ticked.has(item.id)) ticked.set(item.id, new Set());
+      const set = ticked.get(item.id);
+      for (const id of [...set]) if (!usable(item.fixes.find(x => x.id === id))) set.delete(id);
+      return set;
+    }
+
+    function pick(item) {
+      const id = picked.get(item.id) || '';
+      return usable(item.fixes.find(x => x.id === id)) ? id : '';
+    }
+
+    // The ids an Apply sends, in the card's order: the answer fix chosen, if
+    // any, and the ticked text edits.
+    function chosenIds(item) {
+      const set = tickSet(item), answer = pick(item);
+      return item.fixes.filter(f => f.id === answer || set.has(f.id)).map(f => f.id);
+    }
+
+    function noneOption(item, busy, name, checked, onchange) {
+      return el('div', { class: 'ar-option' },
+        el('input', { type: 'radio', name, checked, disabled: busy, 'aria-label': 'No answer fix', onchange }),
+        el('div', {}, el('div', { class: 'ar-option-head' }, 'None'),
+          el('div', { class: 'ar-hint' }, 'Leave the answer as it is. The answer options stay open on the card.')));
+    }
+
+    function option(item, f, n, busy, errBox) {
+      const set = tickSet(item);
+      const box = !usable(f) ? el('span', {}) : isAnswer(f) ? el('input', {
+        type: 'radio', name: 'answer-' + item.id, checked: pick(item) === f.id, disabled: busy,
+        'aria-label': 'Choose option ' + n, onchange: () => { picked.set(item.id, f.id); render(); }
+      }) : el('input', {
+        type: 'checkbox', checked: set.has(f.id), disabled: busy, 'aria-label': 'Apply option ' + n,
+        onchange: e => { e.target.checked ? set.add(f.id) : set.delete(f.id); render(); }
+      });
+      const head = el('div', { class: 'ar-option-head' }, `Option ${n}: ${TYPE[f.type]} `,
+        f.status !== 'open' ? el('span', { class: 'pill ' + f.status }, STATUS[f.status] || f.status) :
+          f.type === 'factual' ? el('span', { class: 'pill editor' }, 'no Apply') : null);
+      const body = el('div', {}, head, ...fixDetail(item, f));
+      if (f.type === 'factual' && f.status === 'open') {
+        const key = item.id + ':resolve:' + f.id;
+        if (forms.has(key)) {
+          const note = el('input', { style: 'width:100%', placeholder: 'What was found or done' });
+          body.append(el('div', { class: 'ar-form' }, el('label', {}, 'Resolve with a note'), note,
+            el('div', { class: 'ar-actions' },
+              el('button', { class: 'ar-btn', onclick: () => act(`/admin/answer-review/${item.id}/fixes/${f.id}/resolve`, { note: note.value }, errBox, () => forms.delete(key)) }, 'Resolve'),
+              el('button', { class: 'ar-btn', onclick: () => { forms.delete(key); render(); } }, 'Cancel'))));
+        } else {
+          body.append(el('div', { class: 'ar-actions' },
+            el('button', { class: 'ar-btn', onclick: () => { forms.add(key); render(); } }, 'Resolve')));
+        }
+      }
+      return el('div', { class: 'ar-option' + (f.status === 'open' ? '' : ' closed') }, box, body);
+    }
+
+    function cores(fixes) {
+      const out = {};
+      for (const f of fixes) {
+        const core = {};
+        for (const [k, v] of Object.entries(f)) if (!['id', 'status', 'category', 'reason', 'original'].includes(k)) core[k] = v;
+        out[f.id] = core;
+      }
+      return out;
+    }
+
+    function checkBox(item) {
+      const c = item.check;
+      if (!c) return null;
+      if (c.state === 'checking') {
+        return el('div', { class: 'ar-note info' }, `Checking option(s) ${optionNumbers(item, c.fix_ids)} against every FAQ title, phrasing and golden question… (about a minute)`);
+      }
+      if (c.state === 'no_longer_fits' || c.state === 'changed_during_check') {
+        return el('div', { class: 'ar-note bad' }, 'Not applied: ', c.reason);
+      }
+      if (c.state === 'failed') return el('div', { class: 'ar-note bad' }, 'Not applied: ', c.error || 'the check failed');
+      if (c.state !== 'moves') return null;
+      const r = c.result || {};
+      const box = el('div', { class: 'ar-note bad' });
+      box.append(el('div', {}, `Option(s) ${optionNumbers(item, c.fix_ids)} not applied. Checked ${r.checked} questions in ${r.seconds} s.`));
+      for (const t of r.targets || []) {
+        if (!t.ok) box.append(el('div', {}, '"', t.question, '" still lands on ', el('code', {}, t.after), ', not ', el('code', {}, t.faq_id), '.'));
+      }
+      if (r.moved && r.moved.length) {
+        box.append(el('div', {}, r.moved.length, ' other question(s) would change answer:'));
+        box.append(el('table', {},
+          el('tr', {}, el('th', {}, 'Question'), el('th', {}, 'Is'), el('th', {}, 'Now'), el('th', {}, 'After')),
+          r.moved.map(m => el('tr', {}, el('td', {}, m.question), el('td', {}, m.kinds.join(', ')),
+            el('td', { class: 'mono' }, m.before), el('td', { class: 'mono' }, m.after)))));
+      }
+      if (r.golden) box.append(el('div', {}, `Golden questions right: ${r.golden.before} now, ${r.golden.after} after, of ${r.golden.total}.`));
+      const anyway = el('input', { maxlength: 20, placeholder: 'initials', 'aria-label': 'Initials to apply anyway' });
+      const err = el('div', { class: 'ar-err' });
+      box.append(el('div', { class: 'ar-form' },
+        el('label', {}, 'Apply anyway: the history will record that you saw these and overrode the check. Type your initials.'),
+        anyway, ' ',
+        el('button', {
+          class: 'ar-btn warn', onclick: () => {
+            if (!anyway.value.trim()) { err.textContent = 'Initials are required to apply anyway.'; return; }
+            err.textContent = '';
+            const by = anyway.value.trim();
+            call(`/admin/answer-review/${item.id}/apply`, { by, override: true, fix_ids: c.fix_ids, edits: cores(c.fixes) })
+              .then(() => { rememberInitials(by); return load(true); }).catch(e => { err.textContent = e.message; });
+          }
+        }, 'Apply anyway'), err));
+      return box;
+    }
+
+    function optionNumbers(item, ids) {
+      return (ids || []).map(id => item.fixes.findIndex(f => f.id === id) + 1).join(', ');
+    }
+
+    const editable = f => f.status === 'open' && (isAnswer(f) || f.type === 'text_edit');
+    const FIELDS = {
+      point_to_faq: ['faq_id', 'phrasing'], text_edit: ['faq_id', 'field', 'old', 'new'],
+      new_faq: ['title', 'category_title', 'note'],
+    };
+    const MULTI = new Set(['old', 'new', 'note']);
+    const snapshot = d => JSON.stringify([d.answer, [...d.ticked].sort(), d.fields]);
+
+    // The form starts from the card: its answer choice, its ticks and each fix as suggested.
+    function newDraft(item) {
+      const fields = {};
+      for (const f of item.fixes.filter(editable)) {
+        fields[f.id] = {};
+        for (const k of FIELDS[f.type]) fields[f.id][k] = f[k] || (k === 'field' ? 'text' : '');
+      }
+      const d = { answer: pick(item), ticked: new Set(tickSet(item)), fields };
+      d.start = snapshot(d);
+      drafts.set(item.id, d);
+      return d;
+    }
+
+    function openEdit(item) {
+      newDraft(item);
+      forms.delete(item.id + ':dismiss');
+      forms.add(item.id + ':edit');
+      scrollToForm = item.id;
+      render();
+    }
+
+    function editDirty(id) {
+      const d = drafts.get(id);
+      return !!d && forms.has(id + ':edit') && snapshot(d) !== d.start;
+    }
+
+    function closeEdit(id) {
+      forms.delete(id + ':edit');
+      drafts.delete(id);
+    }
+
+    function editForm(item, errBox) {
+      const d = drafts.get(item.id) || newDraft(item);
+      const open = item.fixes.filter(editable);
+      // A fix that closed since the form opened (another tab, another admin) drops out.
+      if (d.answer && !open.some(f => f.id === d.answer)) d.answer = '';
+      for (const id of [...d.ticked]) if (!open.some(f => f.id === id)) d.ticked.delete(id);
+      const radioName = 'edit-answer-' + item.id;
+      const form = el('div', { class: 'ar-form', 'data-edit': item.id },
+        el('div', { class: 'ar-hint' }, 'Change any option, choose an answer fix or None, tick any text edits, then apply them together. The rest of the card is locked until you apply or cancel.'));
+      const answers = open.filter(isAnswer);
+      if (answers.length) {
+        form.append(el('div', { class: 'ar-group' }, 'Answer ', el('span', {}, 'choose one')));
+        form.append(noneOption(item, false, radioName, !d.answer, () => { d.answer = ''; }));
+      }
+      const ordered = [...answers, ...open.filter(f => f.type === 'text_edit')];
+      ordered.forEach((f, k) => {
+        if (k === answers.length) form.append(el('div', { class: 'ar-group' }, 'Text edits ', el('span', {}, 'tick any')));
+        const i = item.fixes.indexOf(f);
+        const values = d.fields[f.id] || (d.fields[f.id] = {});
+        const box = isAnswer(f)
+          ? el('input', { type: 'radio', name: radioName, checked: d.answer === f.id, 'aria-label': 'Choose option ' + (i + 1),
+                          onchange: () => { d.answer = f.id; } })
+          : el('input', { type: 'checkbox', checked: d.ticked.has(f.id), 'aria-label': 'Apply option ' + (i + 1),
+                          onchange: e => { e.target.checked ? d.ticked.add(f.id) : d.ticked.delete(f.id); } });
+        const body = el('div', {}, el('div', { class: 'ar-option-head' }, `Option ${i + 1}: ${TYPE[f.type]}`));
+        for (const name of FIELDS[f.type]) {
+          const keep = e => { values[name] = e.target.value; };
+          const node = name === 'field'
+            ? el('select', { onchange: keep }, ['text', 'title'].map(v => el('option', { value: v, selected: values[name] === v }, v)))
+            : MULTI.has(name) ? el('textarea', { oninput: keep }, values[name] || '')
+            : el('input', { value: values[name] || '', style: 'width:100%', oninput: keep });
+          body.append(el('label', {}, name), node);
+        }
+        form.append(el('div', { class: 'ar-option' }, box, body));
+      });
+      form.append(el('div', { class: 'ar-actions sticky' },
+        el('button', {
+          class: 'ar-btn primary', onclick: () => {
+            const chosen = ordered.filter(f => f.id === d.answer || d.ticked.has(f.id));
+            if (!chosen.length) { errBox.textContent = 'Choose an answer fix or tick a text edit.'; return; }
+            const edits = {};
+            for (const f of chosen) edits[f.id] = Object.assign({ type: f.type }, d.fields[f.id]);
+            act(`/admin/answer-review/${item.id}/apply`, { fix_ids: chosen.map(f => f.id), edits }, errBox, () => closeEdit(item.id));
+          }
+        }, 'Apply the chosen, as edited'),
+        el('button', {
+          class: 'ar-btn', onclick: () => {
+            if (editDirty(item.id) && !confirm('Discard your edits to this card?')) return;
+            closeEdit(item.id); render();
+          }
+        }, 'Cancel'),
+        errBox));
+      return form;
+    }
+
+    // Leaving or closing the page with edits typed and not applied.
+    window.addEventListener('beforeunload', e => {
+      if ([...drafts.keys()].some(editDirty)) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    function dismissForm(item, errBox) {
+      const reason = el('input', { style: 'width:100%', placeholder: 'Why' });
+      return el('div', { class: 'ar-form' },
+        el('label', {}, 'Dismiss the whole card: one line on why'), reason,
+        el('div', { class: 'ar-actions' },
+          el('button', { class: 'ar-btn', onclick: () => act(`/admin/answer-review/${item.id}/dismiss`, { reason: reason.value }, errBox, () => forms.delete(item.id + ':dismiss')) }, 'Dismiss'),
+          el('button', { class: 'ar-btn', onclick: () => { forms.delete(item.id + ':dismiss'); render(); } }, 'Cancel')));
+    }
+
+    function itemCard(item) {
+      const editing = forms.has(item.id + ':edit') && tab === 'open';
+      const outer = el('div', { class: 'ar-item' });
+      const card = el('div', editing ? { class: 'ar-locked', inert: true } : {});
+      outer.append(card);
+      const a = item.asked || {};
+      card.append(el('p', { class: 'ar-q' }, item.question),
+        el('div', { class: 'ar-asked' }, `asked ${a.on_date || 0} on ${a.date}, ${a.total || 0} in all (from the question log)`));
+      if (item.wordings && item.wordings.length > 1) card.append(row('Wordings', item.wordings.join(' · ')));
+      card.append(row('Got', ...got(item)));
+      const errBox = el('div', { class: 'ar-err' });
+      const busy = !!(item.check && item.check.state === 'checking');
+      const shown = tab === 'editor'
+        ? item.fixes.filter(f => (f.type === 'factual' && f.status === 'open') || (f.draft && f.draft.exists && !f.draft.written))
+        : item.fixes;
+      card.append(el('div', { class: 'ar-options' }, shown.length === 1 ? 'Suggested fix' : `Suggested fixes (${shown.length})`));
+      const num = f => item.fixes.indexOf(f) + 1;
+      if (tab === 'editor') {
+        for (const f of shown) card.append(option(item, f, num(f), busy, errBox));
+        card.append(errBox);
+        return card;
+      }
+      const answers = shown.filter(isAnswer), edits = shown.filter(f => f.type === 'text_edit'),
+            others = shown.filter(f => !isAnswer(f) && f.type !== 'text_edit');
+      if (answers.length) {
+        card.append(el('div', { class: 'ar-group' }, 'Answer ', el('span', {}, 'choose one')));
+        if (answers.some(usable)) {
+          card.append(noneOption(item, busy, 'answer-' + item.id, !pick(item), () => { picked.set(item.id, ''); render(); }));
+        }
+        for (const f of answers) card.append(option(item, f, num(f), busy, errBox));
+      }
+      if (edits.length) {
+        card.append(el('div', { class: 'ar-group' }, 'Text edits ', el('span', {}, 'tick any')));
+        for (const f of edits) card.append(option(item, f, num(f), busy, errBox));
+      }
+      if (others.length) {
+        card.append(el('div', { class: 'ar-group' }, 'For the editor ', el('span', {}, 'no Apply')));
+        for (const f of others) card.append(option(item, f, num(f), busy, errBox));
+      }
+
+      const box = checkBox(item);
+      if (box) card.append(box);
+      const ids = chosenIds(item);
+      const applicable = item.fixes.some(f => f.status === 'open' && f.type !== 'factual');
+      const actions = el('div', { class: 'ar-actions' });
+      if (applicable) {
+        actions.append(
+          el('button', {
+            class: 'ar-btn primary', disabled: busy || !ids.length,
+            onclick: () => act(`/admin/answer-review/${item.id}/apply`, { fix_ids: chosenIds(item) }, errBox)
+          }, ids.length ? `Apply ${ids.length === 1 ? 'the chosen fix' : 'the ' + ids.length + ' chosen fixes'}` : 'Apply'),
+          el('button', { class: 'ar-btn', disabled: busy, onclick: () => openEdit(item) }, 'Edit then apply'));
+      }
+      actions.append(el('button', { class: 'ar-btn', disabled: busy, onclick: () => { forms.add(item.id + ':dismiss'); render(); } }, 'Dismiss card'));
+      if (applicable && !ids.length && !busy) actions.append(el('span', { class: 'ar-hint' }, 'Choose an answer fix or tick a text edit.'));
+      card.append(actions);
+      if (editing) {
+        if (!item.fixes.some(editable)) closeEdit(item.id);
+        else { outer.append(editForm(item, errBox)); return outer; }
+      }
+      if (forms.has(item.id + ':dismiss')) card.append(dismissForm(item, errBox));
+      card.append(errBox);
+      return outer;
+    }
+
+    function changedFields(before, after) {
+      if (!before) return after ? ['new record'] : [];
+      if (!after) return ['removed'];
+      const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+      return [...keys].filter(k => JSON.stringify(before[k]) !== JSON.stringify(after[k]));
+    }
+
+    const list = (fixes) => el('ul', {}, fixes.map(f => el('li', {}, ...fixSummary(f))));
+
+    function historyTable() {
+      if (!data.history.length) return el('p', { class: 'ar-empty' }, 'Nothing applied, dismissed or resolved yet.');
+      return el('table', {},
+        el('tr', {}, el('th', {}, 'When'), el('th', {}, 'Who'), el('th', {}, 'What'), el('th', {}, 'Question'), el('th', {}, 'Detail'), el('th', {}, '')),
+        data.history.map(h => {
+          const detail = el('td', {});
+          if (h.action === 'applied') {
+            if (h.answer_fix) {
+              const a = h.chosen.find(f => f.id === h.answer_fix);
+              detail.append(el('div', {}, 'Answer fix: ', a ? [TYPE[a.type], ' (', ...fixSummary(a), ')'] : 'none'));
+            }
+            detail.append(el('div', {}, 'Chosen:'), h.chosen.length ? list(h.chosen) : el('div', {}, '(nothing else)'));
+            if (h.not_chosen.length) detail.append(el('div', {}, 'Not chosen (closed):'), list(h.not_chosen));
+            if ((h.left_open || []).length) detail.append(el('div', {}, 'Left open:'), list(h.left_open));
+            const edited = Object.keys(h.edited_from || {});
+            if (edited.length) detail.append(el('div', {}, 'Edited before applying (review wording kept as edited_from): ', edited.join(', ')));
+            detail.append(el('div', {}, 'Changed: ', h.changes.map(c => `${c.chunk_id} (${changedFields(c.before, c.after).join(', ') || 'nothing'})`).join('; ')));
+            detail.append(el('div', {}, h.checked ? `Checked ${h.checked} questions, ${h.moved.length} moved` : 'No check needed (drafts only)',
+              h.golden ? `; golden ${h.golden.before} → ${h.golden.after} of ${h.golden.total}` : ''));
+            if (h.overridden) detail.append(el('div', {}, el('span', { class: 'pill over' }, 'check overridden'), ' ',
+              h.moved.map(m => `${m.question}: ${m.before} → ${m.after}`).join('; '),
+              (h.targets || []).filter(t => !t.ok).map(t => ` "${t.question}" landed on ${t.after}`).join(';')));
+            detail.append(el('div', { class: 'mono' }, 'Backup: ', h.backup));
+          } else if (h.action === 'undone') {
+            detail.append('Restored ', h.changes.join(', '), ' as before the apply of ', h.undid, '. The options reopened.');
+            detail.append(el('div', { class: 'mono' }, 'Backup: ', h.backup));
+          } else {
+            detail.append(h.reason || h.note || '', list(h.fixes || []));
+          }
+          const err = el('div', { class: 'ar-err' });
+          const undo = h.can_undo ? el('button', {
+            class: 'ar-btn', onclick: () => act(`/admin/answer-review/${h.item_id}/undo`, {}, err)
+          }, 'Undo') : '';
+          return el('tr', {}, el('td', { class: 'mono' }, h.at), el('td', {}, h.by || ''),
+            el('td', {}, el('span', { class: 'pill ' + h.action }, h.action)), el('td', {}, h.question), detail, el('td', {}, undo, err));
+        }));
+    }
+
+    function render() {
+      const counts = { open: data.open.length, editor: data.editor.length, history: data.history.length };
+      document.querySelectorAll('.ar-tab').forEach(b => {
+        b.setAttribute('aria-selected', String(b.dataset.tab === tab));
+        b.textContent = { open: 'Open', editor: 'For the editor', history: 'History' }[b.dataset.tab] + ` (${counts[b.dataset.tab]})`;
+      });
+      const target = document.getElementById('ar-list');
+      target.replaceChildren();
+      if (tab === 'history') { target.append(historyTable()); return; }
+      const items = data[tab];
+      if (!items.length) {
+        target.append(el('p', { class: 'ar-empty' }, tab === 'open' ? 'Nothing open.' : 'Nothing waiting for the editor.'));
+        return;
+      }
+      items.forEach(i => target.append(itemCard(i)));
+      if (scrollToForm) {
+        const form = target.querySelector(`[data-edit="${scrollToForm}"]`);
+        scrollToForm = null;
+        if (form) {
+          form.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          const first = form.querySelector('input, textarea, select');
+          if (first) first.focus({ preventScroll: true });
+        }
+      }
+    }
+
+    async function load(force) {
+      // A timed refresh rebuilds every card; never under someone typing in a form.
+      if (force !== true && document.activeElement && document.activeElement.closest('.ar-form')) {
+        clearTimeout(pollTimer);
+        pollTimer = setTimeout(load, 2000);
+        return;
+      }
+      try {
+        const res = await fetch(API + '/admin/answer-review', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        data = await res.json();
+      } catch (e) {
+        document.getElementById('ar-list').replaceChildren(el('p', { class: 'ar-err' }, 'Could not load: ' + e.message));
+        return;
+      }
+      render();
+      clearTimeout(pollTimer);
+      if (data.open.some(i => i.check && i.check.state === 'checking')) pollTimer = setTimeout(load, 2000);
+    }
+
+    document.querySelectorAll('.ar-tab').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; render(); }));
+    load(true);
+  </script>
+  <script src="/web/admin-env-banner.js"></script>
+</body>
+
+</html>

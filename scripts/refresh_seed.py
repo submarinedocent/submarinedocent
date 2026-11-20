@@ -68,7 +68,7 @@ DEFAULT_BASE_URL = "https://submarinedocent.org"
 
 # Files that live on /data but must never enter corpora/.
 NEVER_SEED = frozenset({"ask_log.jsonl", "feedback.jsonl", "contact_messages.jsonl",
-                        "contact_failures.jsonl"})
+                        "contact_failures.jsonl", "answer_review.jsonl"})
 
 # Personal names the live site keeps (in a rights note, say) and the public seed
 # does not.  The list is private: a list of names to keep out of this repository

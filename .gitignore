@@ -82,6 +82,9 @@ web/videos/
 /contact_messages.jsonl
 /contact_messages_audio/
 /contact_failures.jsonl
+# The answer review page's items and its backups, kept here when run locally.
+/answer_review.jsonl
+/review_backups/
 /contact_failures_audio/
 /videos.jsonl
 /museums.jsonl
