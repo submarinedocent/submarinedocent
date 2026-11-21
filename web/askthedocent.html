@@ -1304,7 +1304,9 @@
       return true;
     }
 
-    // ── Try pre-recorded FAQ audio → server TTS → ElevenLabs TTS ───────────────
+    // ── Server TTS → ElevenLabs TTS ──────────────────────────────────────────
+    // No pre-recorded per-FAQ audio exists, so the page no longer asks for
+    // audio/{chunk}_{lang}.mp3 first: every such request failed (Irving, 20 Nov 2026).
     async function playFaqAudioOrSpeak(data, answerPlain) {
       stopAnswerAudio();
 
@@ -1332,39 +1334,8 @@
       const setSpeakStop = () => { showStopBtn(); };
       const resetSpeakBtn = () => { showAskBtn(); };
 
-      // 1. Pre-recorded FAQ MP3 — fast timeout so a missing file doesn't block
-      if (chunkId) {
-        askStatus.textContent = '🔊 Loading audio…';
-        try {
-          const abortCtrl = new AbortController();
-          const abortTimer = setTimeout(() => abortCtrl.abort(), 1500);
-          const resp = await fetch(getAudioUrl(`${chunkId}_${loadSettings().lang}.mp3`), { signal: abortCtrl.signal });
-          clearTimeout(abortTimer);
-          if (resp.ok) {
-            const arrayBuf = await resp.arrayBuffer();
-            if (citationSourceId === 'dieselsubs_faq' || citationSourceId === 'dieselsubs_shorts') {
-              try {
-                const faqCtrl = new AbortController();
-                const faqTimer = setTimeout(() => faqCtrl.abort(), 3000);
-                const faqResp = await fetch(getAudioUrl('faqThatCoversThisTopic.mp3'), { signal: faqCtrl.signal });
-                clearTimeout(faqTimer);
-                if (faqResp.ok) {
-                  const faqBuf = await faqResp.arrayBuffer();
-                  await new Promise(resolve => playArrayBuffer(faqBuf, resolve, 2.0));
-                }
-              } catch (e) { console.warn('[playFaqAudioOrSpeak] faqThatCoversThisTopic fetch/play error:', e); }
-            }
-            playArrayBuffer(arrayBuf, resetSpeakBtn);
-            setSpeakStop();
-            askStatus.textContent = '';
-            return;
-          }
-        } catch (e) { /* not found or timed out — fall through */ }
-        askStatus.textContent = '';
-      }
-
       const s = loadSettings();
-      // 2. Project-owned server TTS — preferred over visitor-supplied keys
+      // 1. Project-owned server TTS — preferred over visitor-supplied keys
       if (ttsAvailable) {
         const prefetchedAudio = getPrefetchedAnswerAudio(data, answerPlain);
         if (prefetchedAudio) {
@@ -1398,7 +1369,7 @@
         askStatus.textContent = '';
       }
 
-      // 3. ElevenLabs TTS — flash model, truncate to first 300 chars for speed
+      // 2. ElevenLabs TTS — flash model, truncate to first 300 chars for speed
       if (s.elKey) {
         // Trim to ~300 chars at a sentence boundary for fast generation
         let ttsText = answerPlain;
