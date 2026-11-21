@@ -35,3 +35,4 @@ hide 1d97da9  Its visitor changes (faq_786 start, faq_783 caption) are covered b
 
 say a193764 Short video clips now play under more than 70 answers, starting at the moment that answers the question.
 say aac516b Museum pages now show their answers' videos.
+say 3c71ba7 Ask the Docent no longer offers a language choice. It listens and speaks in English, the language its answers are written in.
