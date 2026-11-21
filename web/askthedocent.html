@@ -56,18 +56,6 @@
       color: #c9d8f0;
     }
 
-    #headerLang {
-      margin-top: 6px;
-      background: #0d1525;
-      border: 1px solid #2a3a5a;
-      border-radius: 4px;
-      color: #8aa0c0;
-      font-size: 12px;
-      padding: 3px 8px;
-      cursor: pointer;
-      text-align: center;
-    }
-
     .site-warning {
       background: #3b2f12;
       border-bottom: 1px solid #6f5b28;
@@ -718,14 +706,6 @@
     <div style="flex:1"></div>
     <div style="text-align:center">
       <h1>Ask the Docent</h1>
-      <select id="headerLang">
-        <option value="en">English</option>
-        <option value="fr">Français</option>
-        <option value="de">Deutsch</option>
-        <option value="es">Español</option>
-        <option value="zh">中文</option>
-        <option value="ja">日本語</option>
-      </select>
     </div>
     <div style="flex:1;display:flex;justify-content:flex-end;gap:8px;align-items:flex-start;">
       <button id="settingsBtn">⚙</button>
@@ -809,18 +789,6 @@
       <input id="settElVoice" value="EXAVITQu4vr4xnSDxMaL" />
       <div class="hint">Default: Sarah (neutral US English)</div>
     </div>
-    <div class="field">
-      <label>FAQ Audio Language</label>
-      <select id="settLang">
-        <option value="en">English (en)</option>
-        <option value="fr">French (fr)</option>
-        <option value="de">German (de)</option>
-        <option value="es">Spanish (es)</option>
-        <option value="zh">Chinese (zh)</option>
-        <option value="ja">Japanese (ja)</option>
-      </select>
-      <div class="hint">Selects the language version of pre-recorded FAQ audio</div>
-    </div>
     <div class="modal-btns">
       <button id="settCancel">Cancel</button>
       <button id="settSave" class="primary">Save</button>
@@ -833,7 +801,10 @@
 
     // ── Settings ───────────────────────────────────────────────────────────────
     // The same localStorage keys the audio tour uses, so a visitor who set an API
-    // base or a language on one page finds it already set on the other.
+    // base on one page finds it already set on the other.  The language is fixed
+    // at English until answers exist in another language (Irving, 20 Nov 2026):
+    // a tour_lang saved by the old selector is ignored, so speech input and
+    // spoken answers stay English.
     function getDefaultApiBase() {
       // Legacy local HTTPS/static split used 8444 for static files and 8443 for API.
       if (location.port === '8444') {
@@ -882,7 +853,7 @@
         apiBase: normalizeApiBase(localStorage.getItem('tour_apiBase')),
         elKey: localStorage.getItem('tour_elKey') || '',
         elVoice: localStorage.getItem('tour_elVoice') || 'EXAVITQu4vr4xnSDxMaL',
-        lang: localStorage.getItem('tour_lang') || 'en',
+        lang: 'en',
       };
     }
 
@@ -890,7 +861,6 @@
       localStorage.setItem('tour_apiBase', s.apiBase);
       localStorage.setItem('tour_elKey', s.elKey);
       localStorage.setItem('tour_elVoice', s.elVoice);
-      localStorage.setItem('tour_lang', s.lang);
     }
 
     function getAudioUrl(file) {
@@ -2300,7 +2270,6 @@
       settApiBase.value = s.apiBase;
       settElKey.value = s.elKey;
       settElVoice.value = s.elVoice;
-      document.getElementById('settLang').value = s.lang;
       settingsModal.showModal();
     };
     document.getElementById('settCancel').onclick = () => settingsModal.close();
@@ -2309,21 +2278,9 @@
         apiBase: settApiBase.value.trim().replace(/\/+$/, ''),
         elKey: settElKey.value.trim(),
         elVoice: settElVoice.value.trim() || 'EXAVITQu4vr4xnSDxMaL',
-        lang: document.getElementById('settLang').value,
       });
-      document.getElementById('headerLang').value = document.getElementById('settLang').value;
       settingsModal.close();
     };
-
-    // ── Header language dropdown ──────────────────────────────────────────────
-    const headerLang = document.getElementById('headerLang');
-    headerLang.value = loadSettings().lang;
-    headerLang.addEventListener('change', () => {
-      const s = loadSettings();
-      s.lang = headerLang.value;
-      saveSettings(s);
-      document.getElementById('settLang').value = headerLang.value;
-    });
 
     // ── Init ───────────────────────────────────────────────────────────────────
     showSuggestions();
