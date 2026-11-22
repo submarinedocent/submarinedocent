@@ -101,6 +101,9 @@ jobs:
       - name: Museum profile fields test
         run: python3 _test/test_museum_profile.py
 
+      - name: Museum short URL redirect test
+        run: python3 _test/test_museum_slug_redirect.py
+
       - name: Staging noindex test
         run: python3 _test/test_noindex_staging.py
 

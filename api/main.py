@@ -7718,8 +7718,12 @@ def download_ask_log():
 # that is not a known museum slug falls through to a 404, which is what an
 # unmatched single-segment path did before this existed.
 @app.get("/{museum_slug}", include_in_schema=False)
-def redirect_museum_slug(museum_slug: str):
+def redirect_museum_slug(museum_slug: str, recording: Optional[str] = None):
     museum = _museum_by_slug(museum_slug)
     if museum is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return RedirectResponse(url=f"/web/museums.html?museum={museum.get('id')}")
+    # recording=1/0 is the screen-recording switch (web/recording-mode.js), so
+    # /cod?recording=1 hides the banner as any other page does.  Only that
+    # parameter is carried; nothing else in the query string reaches the page.
+    suffix = f"&recording={recording}" if recording in ("0", "1") else ""
+    return RedirectResponse(url=f"/web/museums.html?museum={museum.get('id')}{suffix}")
