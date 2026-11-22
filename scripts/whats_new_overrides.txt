@@ -34,6 +34,7 @@ hide 3be8b72  Rights notes are kept privately by the project (Irving, 19 Nov); n
 hide 1d97da9  Its visitor changes (faq_786 start, faq_783 caption) are covered by a193764's line; the lost-boat histories were already live.
 hide 3c71ba7  Language selector removed from Ask; Irving chose a hide line over a say line (20 Nov).
 hide 591e62e  Stops a request for audio files that never existed; nothing a visitor sees changes.
+hide 6b22178  Recording mode for the maintainer's screen recordings; visitors see no change.
 
 say a193764 Short video clips now play under more than 70 answers, starting at the moment that answers the question.
 say aac516b Museum pages now show their answers' videos.
