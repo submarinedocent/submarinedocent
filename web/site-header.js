@@ -14,7 +14,7 @@
 const SiteHeader = (() => {
   const BRAND_HREF  = '/web/faqs.html';
   const BRAND_TEXT  = 'Home';
-  const ABOUT_HREF  = '/welcome.html?force=1';
+  const ABOUT_HREF  = '/web/about.html';
   const FEEDBACK_HREF = '/web/contact.html';
   const DEFAULT_FEEDBACK = 'Can\'t find what you\'re looking for? Have corrections or suggestions?';
   const WARNING_TEXT = '<strong>Work in progress:</strong> this site is still being developed, and some content and historical data remain unverified.';
