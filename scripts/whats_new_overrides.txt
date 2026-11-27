@@ -37,6 +37,7 @@ hide 591e62e  Stops a request for audio files that never existed; nothing a visi
 hide 6b22178  Recording mode for the maintainer's screen recordings; visitors see no change.
 hide 583178c  Favicon link on the FAQs page; a tab icon, not visitor news.
 hide ffba834  Loads recording mode on the new About page; covered by 384ec90's line.
+hide d843eec  Wording fixes on the new Get Involved page before it shipped; covered by f329539's line.
 
 say a193764 Short video clips now play under more than 70 answers, starting at the moment that answers the question.
 say aac516b Museum pages now show their answers' videos.
