@@ -1,6 +1,160 @@
 {
   "entries": [
     {
+      "week_ending": "2026-11-27",
+      "from": "2026-11-20",
+      "to": "2026-11-27",
+      "generated": "2026-11-27T10:40:28-08:00",
+      "commits_total": 16,
+      "commits_listed": 0,
+      "commits": [
+        {
+          "sha": "58aa815",
+          "summary": "What's New: hide the recording mode change",
+          "date": "2026-11-22T11:08:24-08:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "6b22178",
+          "summary": "Recording mode: ?recording=1 hides the Work in progress banner for the tab",
+          "date": "2026-11-22T11:08:24-08:00",
+          "area": "Ask the Docent",
+          "files": 14,
+          "public": false,
+          "reason": "Recording mode for the maintainer's screen recordings; visitors see no change."
+        },
+        {
+          "sha": "e7cc15e",
+          "summary": "What's New: hide the Ask language and audio changes",
+          "date": "2026-11-20T17:09:25-08:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "591e62e",
+          "summary": "Ask: stop requesting pre-recorded FAQ audio, which does not exist",
+          "date": "2026-11-20T17:09:24-08:00",
+          "area": "Ask the Docent",
+          "files": 1,
+          "public": false,
+          "reason": "Stops a request for audio files that never existed; nothing a visitor sees changes."
+        },
+        {
+          "sha": "1a9f378",
+          "summary": "What's New: wording for the Ask language selector removal",
+          "date": "2026-11-20T16:56:30-08:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "changed nothing a visitor loads"
+        },
+        {
+          "sha": "3c71ba7",
+          "summary": "Ask: remove the language selector; speech input and spoken answers are English only",
+          "date": "2026-11-20T16:56:26-08:00",
+          "area": "Ask the Docent",
+          "files": 1,
+          "public": false,
+          "reason": "Language selector removed from Ask; Irving chose a hide line over a say line (20 Nov)."
+        },
+        {
+          "sha": "3f35d3a",
+          "summary": "Answer review: Edit then apply takes over the card until applied or cancelled",
+          "date": "2026-11-20T10:11:34-08:00",
+          "area": "Pages and layout",
+          "files": 1,
+          "public": false,
+          "reason": "the commit asked to be hidden"
+        },
+        {
+          "sha": "d009cbc",
+          "summary": "Answer review: choosing an answer fix closes only the other answer options",
+          "date": "2026-11-20T10:11:34-08:00",
+          "area": "Pages and layout",
+          "files": 3,
+          "public": false,
+          "reason": "the commit asked to be hidden"
+        },
+        {
+          "sha": "e8ac432",
+          "summary": "What's New: week ending 2026-11-20",
+          "date": "2026-11-20T17:31:33Z",
+          "area": "Pages and layout",
+          "files": 2,
+          "public": false,
+          "reason": "an editing screen, not a visitor page"
+        },
+        {
+          "sha": "6008429",
+          "summary": "Answer review: answer fixes are a choose-one group, None by default",
+          "date": "2026-11-20T08:11:43-08:00",
+          "area": "Pages and layout",
+          "files": 3,
+          "public": false,
+          "reason": "the commit asked to be hidden"
+        },
+        {
+          "sha": "b87ee3c",
+          "summary": "Answer review: Apply anyway's initials box starts empty",
+          "date": "2026-11-20T08:00:12-08:00",
+          "area": "Pages and layout",
+          "files": 1,
+          "public": false,
+          "reason": "the commit asked to be hidden"
+        },
+        {
+          "sha": "cc129b3",
+          "summary": "Answer review: remember the last initials used in this browser",
+          "date": "2026-11-20T07:58:24-08:00",
+          "area": "Pages and layout",
+          "files": 1,
+          "public": false,
+          "reason": "the commit asked to be hidden"
+        },
+        {
+          "sha": "5b261c1",
+          "summary": "Answer review: one card per question, fixes ticked and applied together",
+          "date": "2026-11-20T07:43:58-08:00",
+          "area": "Pages and layout",
+          "files": 4,
+          "public": false,
+          "reason": "the commit asked to be hidden"
+        },
+        {
+          "sha": "f612102",
+          "summary": "Browser CI: browser installs time out after 10 minutes",
+          "date": "2026-11-20T07:05:36-08:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "the commit asked to be hidden"
+        },
+        {
+          "sha": "db49d05",
+          "summary": "Answer review page: the daily review's findings, applied from the admin",
+          "date": "2026-11-20T06:40:20-08:00",
+          "area": "Pages and layout",
+          "files": 9,
+          "public": false,
+          "reason": "the commit asked to be hidden"
+        },
+        {
+          "sha": "a073e97",
+          "summary": "FAQ create and save: bodies as shared functions",
+          "date": "2026-11-20T06:40:13-08:00",
+          "area": "",
+          "files": 1,
+          "public": false,
+          "reason": "the commit asked to be hidden"
+        }
+      ]
+    },
+    {
       "week_ending": "2026-11-20",
       "from": "2026-11-13",
       "to": "2026-11-20",
