@@ -36,6 +36,8 @@ hide 3c71ba7  Language selector removed from Ask; Irving chose a hide line over 
 hide 591e62e  Stops a request for audio files that never existed; nothing a visitor sees changes.
 hide 6b22178  Recording mode for the maintainer's screen recordings; visitors see no change.
 hide 583178c  Favicon link on the FAQs page; a tab icon, not visitor news.
+hide ffba834  Loads recording mode on the new About page; covered by 384ec90's line.
 
 say a193764 Short video clips now play under more than 70 answers, starting at the moment that answers the question.
 say aac516b Museum pages now show their answers' videos.
+say 384ec90 The welcome page is now a single screen that gets you to Ask the Docent, the FAQs or Eternal Patrol in one click. Everything that used to sit below it, from the spoken welcome to the acknowledgments, now has its own About page.
