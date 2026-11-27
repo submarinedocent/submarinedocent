@@ -503,6 +503,14 @@ if os.path.isdir(WEB_DIR):
             target = f"{target}?{request.url.query}"
         return RedirectResponse(url=target)
 
+    @app.get("/get-involved", include_in_schema=False)
+    @app.get("/get-involved.html", include_in_schema=False)
+    def redirect_get_involved_html(request: Request):
+        target = "/web/get-involved.html"
+        if request.url.query:
+            target = f"{target}?{request.url.query}"
+        return RedirectResponse(url=target)
+
     @app.get("/index.html", include_in_schema=False)
     @app.get("/web/index.html", include_in_schema=False)
     def redirect_index_html():
