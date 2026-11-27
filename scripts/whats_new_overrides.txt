@@ -35,6 +35,7 @@ hide 1d97da9  Its visitor changes (faq_786 start, faq_783 caption) are covered b
 hide 3c71ba7  Language selector removed from Ask; Irving chose a hide line over a say line (20 Nov).
 hide 591e62e  Stops a request for audio files that never existed; nothing a visitor sees changes.
 hide 6b22178  Recording mode for the maintainer's screen recordings; visitors see no change.
+hide 583178c  Favicon link on the FAQs page; a tab icon, not visitor news.
 hide ffba834  Loads recording mode on the new About page; covered by 384ec90's line.
 
 say a193764 Short video clips now play under more than 70 answers, starting at the moment that answers the question.
