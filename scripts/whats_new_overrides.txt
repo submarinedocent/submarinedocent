@@ -37,7 +37,9 @@ hide 591e62e  Stops a request for audio files that never existed; nothing a visi
 hide 6b22178  Recording mode for the maintainer's screen recordings; visitors see no change.
 hide 583178c  Favicon link on the FAQs page; a tab icon, not visitor news.
 hide ffba834  Loads recording mode on the new About page; covered by 384ec90's line.
+hide d843eec  Wording fixes on the new Get Involved page before it shipped; covered by f329539's line.
 
 say a193764 Short video clips now play under more than 70 answers, starting at the moment that answers the question.
 say aac516b Museum pages now show their answers' videos.
 say 384ec90 The welcome page is now a single screen that gets you to Ask the Docent, the FAQs or Eternal Patrol in one click. Everything that used to sit below it, from the spoken welcome to the acknowledgments, now has its own About page.
+say f329539 A new Get Involved page explains how you can help keep this project going, from code to research to museum work. It is linked from the menu at the top of every page and from the welcome page.
