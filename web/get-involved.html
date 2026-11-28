@@ -59,8 +59,8 @@
 
     <p>
       submarinedocent.org was started by Irving Greisman and Dwight Naset, two volunteer docents who wanted
-      visitors' questions about WWII fleet submarines to get accurate, verified answers. It now has more than
-      370 verified FAQs, Medal of Honor histories, eternal patrol records, and Ask the Docent, which answers
+      visitors' questions about WWII fleet submarines to get accurate, verified answers. It now has
+      <span id="faqCount">hundreds of</span> verified FAQs, Medal of Honor histories, eternal patrol records, and Ask the Docent, which answers
       visitors' questions in plain language.
     </p>
     <p>
@@ -95,6 +95,19 @@
   <script>
     SiteFooter.render();
     SiteHeader.render({ title: 'Get Involved' });
+
+    // The count comes from the live corpus, so it never goes stale (Irving,
+    // 27 Nov 2026).  The next lower multiple of 10, so "more than" stays true
+    // even at an exact 380.  Without it the page says "hundreds of".
+    fetch('/health')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        const n = d ? Number(d.faq_chunks) : 0;
+        if (n >= 20) {
+          document.getElementById('faqCount').textContent = `more than ${Math.floor((n - 1) / 10) * 10}`;
+        }
+      })
+      .catch(() => {});
   </script>
 </body>
 

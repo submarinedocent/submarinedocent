@@ -62,6 +62,10 @@ def main():
     check("shared nav links the page", "'/web/get-involved.html'" in read("web/site-header.js")
           and "${INVOLVED_HREF}" in read("web/site-header.js"))
     check("welcome page links the page", 'href="/web/get-involved.html"' in read("web/welcome.html"))
+    # The FAQ count is read from /health, never written into the page.
+    check("FAQ count is not hard-coded", not re.search(r"more than\s+\d", text), re.findall(r"more than\s+\d+", text))
+    check("FAQ count has its no-script wording", '<span id="faqCount">hundreds of</span>' in page)
+    check("/health reports the FAQ count the page reads", isinstance(client.get("/health").json().get("faq_chunks"), int))
 
     shutil.rmtree(root, ignore_errors=True)
     print(f"\n{'FAILED' if failures else 'ok'}: {len(failures)} failure(s)")
