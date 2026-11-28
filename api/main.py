@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+import functools
 import hashlib
 import html
 import io
@@ -1560,6 +1561,20 @@ SOFT_STOPWORDS = {"submarines", "boats", "subs", "they", "them", "their",
 
 
 def tokenize(text: str, keep_soft: bool = True) -> List[str]:
+    # overlap_score() tokenizes every record's text for every question: about
+    # 10,000 calls per question, three quarters of /ask's time (27 November
+    # 2026, measured).  The result depends only on the text, so it is cached by
+    # the text itself; an edited record is new text and simply misses.  A fresh
+    # list is returned each time because callers filter and extend it.
+    return list(_tokenize_cached(text or "", keep_soft))
+
+
+@functools.lru_cache(maxsize=32768)
+def _tokenize_cached(text: str, keep_soft: bool) -> Tuple[str, ...]:
+    return tuple(_tokenize_uncached(text, keep_soft))
+
+
+def _tokenize_uncached(text: str, keep_soft: bool = True) -> List[str]:
     text = (text or "").lower()
     # Preserve known hyphenated terms before stripping punctuation
     text = re.sub(r"\bv-mail\b", "vmail", text)
