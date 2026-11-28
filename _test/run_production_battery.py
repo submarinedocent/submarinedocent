@@ -13,6 +13,7 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.request
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -30,15 +31,23 @@ def ask(base_url: str, question: str) -> str | None:
     req = urllib.request.Request(
         f"{base_url}/ask", data=body, headers=TEST_HEADER
     )
-    try:
-        with urllib.request.urlopen(req, timeout=15) as r:
-            j = json.loads(r.read())
-            # Rows that should refuse carry accept: ["refusal"].
-            if (j.get("refusal") or {}).get("is_refusal"):
-                return "refusal"
-            return j.get("faq_id")
-    except Exception as exc:
-        return f"ERROR:{exc}"
+    # Production limits each address to 20 questions a minute (27 Nov 2026).
+    # This runs 127, so a 429 means wait as told and ask again, not a failure.
+    for _ in range(5):
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                j = json.loads(r.read())
+                # Rows that should refuse carry accept: ["refusal"].
+                if (j.get("refusal") or {}).get("is_refusal"):
+                    return "refusal"
+                return j.get("faq_id")
+        except urllib.error.HTTPError as exc:
+            if exc.code != 429:
+                return f"ERROR:{exc}"
+            time.sleep(int(exc.headers.get("Retry-After") or 60) + 1)
+        except Exception as exc:
+            return f"ERROR:{exc}"
+    return "ERROR:still rate limited after 5 tries"
 
 
 def main() -> int:
