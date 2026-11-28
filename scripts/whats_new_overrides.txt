@@ -38,6 +38,9 @@ hide 6b22178  Recording mode for the maintainer's screen recordings; visitors se
 hide 583178c  Favicon link on the FAQs page; a tab icon, not visitor news.
 hide ffba834  Loads recording mode on the new About page; covered by 384ec90's line.
 hide d843eec  Wording fixes on the new Get Involved page before it shipped; covered by f329539's line.
+hide 356d54f  Rate limits, signed spoken answers and size limits; an ordinary visitor sees no change.
+hide d4f6b46  Get Involved reads its FAQ count from the live corpus; the number shown is unchanged.
+hide 93aa576  Favicon link on 21 pages; a tab icon, not visitor news.
 
 say a193764 Short video clips now play under more than 70 answers, starting at the moment that answers the question.
 say aac516b Museum pages now show their answers' videos.
