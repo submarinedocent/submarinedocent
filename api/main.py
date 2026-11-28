@@ -1,5 +1,6 @@
 from __future__ import annotations
 import base64
+import collections
 from datetime import date as _date
 from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,6 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Red
 from fastapi.staticfiles import StaticFiles
 import functools
 import hashlib
+import hmac
 import html
 import io
 import json
@@ -360,6 +362,122 @@ def _basic_auth_challenge(realm: str, detail: str, status_code: int = 401) -> Pl
     )
 
 
+# ── Visitor rate limits ─────────────────────────────────────────────────────
+# Added 27 November 2026, before the film brought a traffic spike (Irving).
+# Before this, /ask, /tts, /transcribe and the two visitor forms took any number
+# of requests.  /ask costs only CPU; /tts and /transcribe cost money per call;
+# the forms write to /data.
+#
+# Privacy: an address is a dictionary key in this process's memory and nothing
+# else.  It is never printed, logged or written to disk, and a restart forgets
+# every count.  Fixed windows (a start time and a count per limit) rather than a
+# list of request times keep each address to a few numbers, so the table stays
+# small however many visitors arrive; at _RATE_MAX_KEYS the address unseen for
+# longest is dropped.  The global caps below bound spending even then.
+#
+# Every limit is an environment variable, so it can be tightened on Render
+# without a code change.  RATE_LIMITS=off turns them all off.
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+def _rate_limits_on() -> bool:
+    return os.getenv("RATE_LIMITS", "on").strip().lower() not in ("off", "0", "false", "no")
+
+
+_RATE_MAX_KEYS = _env_int("RATE_LIMIT_MAX_KEYS", 50000)
+
+# Per visitor, as (requests, window in seconds).
+_VISITOR_LIMITS: Dict[str, List[Tuple[int, int]]] = {
+    "ask": [(_env_int("ASK_LIMIT_PER_MINUTE", 20), 60), (_env_int("ASK_LIMIT_PER_HOUR", 200), 3600)],
+    # Counted only when a new clip is generated; a cached clip costs nothing.
+    "tts": [(_env_int("TTS_LIMIT_PER_HOUR", 60), 3600)],
+    "transcribe": [(_env_int("TRANSCRIBE_LIMIT_PER_10_MIN", 20), 600),
+                   (_env_int("TRANSCRIBE_LIMIT_PER_DAY", 100), 86400)],
+    # Contact-form messages and historian questions, together.
+    "message": [(_env_int("MESSAGE_LIMIT_PER_HOUR", 5), 3600)],
+    # Thumbs up/down on an answer: one per answer, so looser than messages.
+    "rating": [(_env_int("RATING_LIMIT_PER_HOUR", 60), 3600)],
+}
+# Site-wide caps on what costs money.
+_GLOBAL_LIMITS: Dict[str, List[Tuple[int, int]]] = {
+    "tts": [(_env_int("TTS_NEW_CLIPS_PER_DAY", 3000), 86400)],
+    "transcribe": [(_env_int("TRANSCRIBE_PER_DAY", 5000), 86400)],
+}
+
+_rate_lock = threading.Lock()
+_rate_table: "collections.OrderedDict[Tuple[str, str], List[List[float]]]" = collections.OrderedDict()
+
+
+def _rate_take(bucket: str, key: str, limits: List[Tuple[int, int]]) -> Optional[int]:
+    """Count one request for key, or return the seconds until it may try again.
+
+    A refused request is not counted, so a caller who keeps trying is let back
+    in when the window ends rather than held out by their own retries.
+    """
+    now = time.time()
+    with _rate_lock:
+        slot = _rate_table.get((bucket, key))
+        if slot is None:
+            slot = [[now, 0] for _ in limits]
+            _rate_table[(bucket, key)] = slot
+            while len(_rate_table) > _RATE_MAX_KEYS:
+                _rate_table.popitem(last=False)
+        else:
+            _rate_table.move_to_end((bucket, key))
+        for window, (count, seconds) in zip(slot, limits):
+            if now - window[0] >= seconds:
+                window[0], window[1] = now, 0
+            if window[1] >= count:
+                return max(1, math.ceil(seconds - (now - window[0])))
+        for window in slot:
+            window[1] += 1
+    return None
+
+
+def _rate_check(request: Request, bucket: str, detail: str, site_wide: bool = False) -> None:
+    """Raise a 429 with Retry-After when this visitor, or the site, is over the limit."""
+    if not _rate_limits_on():
+        return
+    retry = _rate_take(bucket, _client_ip(request), _VISITOR_LIMITS[bucket])
+    if retry is None and site_wide and bucket in _GLOBAL_LIMITS:
+        retry = _rate_take(bucket, "*", _GLOBAL_LIMITS[bucket])
+    if retry is not None:
+        raise HTTPException(status_code=429, detail=detail,
+                            headers={"Retry-After": str(retry), "Cache-Control": "no-store"})
+
+
+def _rate_reset() -> None:
+    """Forget every count.  For tests."""
+    with _rate_lock:
+        _rate_table.clear()
+
+
+# The page shows its own wording for each refusal (askthedocent.html); these
+# details are for anyone calling the API directly.
+RATE_DETAIL_ASK = "You're asking faster than the docent can answer. Please wait a minute, then try again."
+RATE_DETAIL_TTS = "Spoken answers are paused for now. The written answer is above."
+RATE_DETAIL_TRANSCRIBE = "Voice questions are paused for a moment. Type your question below."
+RATE_DETAIL_MESSAGE = "Too many messages from this connection in the last hour. Please try again later."
+RATE_DETAIL_RATING = "Too many ratings from this connection in the last hour."
+
+# Largest request body each visitor endpoint accepts, checked from
+# Content-Length before the body is read.  A voice recording stops at 30
+# seconds on the page, which at the highest bitrate a browser uses is under
+# 1 MB; /contact carries the same recording plus text.
+TRANSCRIBE_MAX_AUDIO_BYTES = _env_int("TRANSCRIBE_MAX_AUDIO_BYTES", 2_000_000)
+_BODY_LIMITS: Dict[str, int] = {
+    "/ask": 16_384,
+    "/tts": 16_384,
+    "/feedback": 65_536,
+    "/transcribe": TRANSCRIBE_MAX_AUDIO_BYTES + 100_000,
+    "/contact": TRANSCRIBE_MAX_AUDIO_BYTES + 100_000,
+}
+
+
 @app.middleware("http")
 async def redirect_legacy_domain(request: Request, call_next):
     host = _request_host(request)
@@ -386,6 +504,18 @@ async def noindex_staging(request: Request, call_next):
     if SITE_NOINDEX or "staging" in _request_host(request):
         response.headers["X-Robots-Tag"] = "noindex, nofollow"
     return response
+
+
+@app.middleware("http")
+async def limit_visitor_body_size(request: Request, call_next):
+    """Refuse an oversized visitor request before its body is read."""
+    limit = _BODY_LIMITS.get(request.url.path)
+    if limit and request.method == "POST":
+        length = request.headers.get("content-length", "")
+        if length.isdigit() and int(length) > limit:
+            return JSONResponse({"detail": "This request is too large."}, status_code=413,
+                                headers={"Cache-Control": "no-store"})
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -1258,8 +1388,18 @@ def _record_unsent(form: str, reason: str, entry: Dict[str, Any]) -> None:
     }, "unsent message")
 
 
+# Longest text each visitor form field keeps.  The contact form's own limits
+# are 120, 200 and 4,000 characters; these are the server's, for callers that
+# skip the page.
+CONTACT_MAX_QUESTION = 4000
+CONTACT_MAX_RESPONSE = 1000
+FEEDBACK_MAX = {"name": 200, "email": 320, "message": 4000,
+                "question": 1000, "answer": 20000, "comment": 4000}
+
+
 @app.post("/contact")
 async def contact(
+    request: Request,
     question_text: str = Form(""),
     visitor_response: str = Form(""),
     lang: str = Form("en"),
@@ -1268,8 +1408,11 @@ async def contact(
     """Receive a visitor question + contact response, keep it, and email the historian."""
     import datetime
     import uuid
-    question = question_text.strip()
-    visitor_response = visitor_response.strip()
+    _rate_check(request, "message", RATE_DETAIL_MESSAGE)
+    # Shortened rather than refused: this arrives from the spoken flow on the
+    # Ask page, where a refusal would never reach the visitor.
+    question = question_text.strip()[:CONTACT_MAX_QUESTION]
+    visitor_response = visitor_response.strip()[:CONTACT_MAX_RESPONSE]
 
     lang_label = {
         "en": "English", "fr": "French", "de": "German",
@@ -1283,7 +1426,10 @@ async def contact(
     )
     print(f"[CONTACT] {body}")
 
-    audio_bytes = (await audio.read()) if audio else b""
+    audio_bytes = (await audio.read(TRANSCRIBE_MAX_AUDIO_BYTES + 1)) if audio else b""
+    if len(audio_bytes) > TRANSCRIBE_MAX_AUDIO_BYTES:
+        # Keep the message; drop a recording too long to have come from the page.
+        audio_bytes = b""
     audio_ext = "mp4" if audio and "mp4" in (audio.content_type or "") else "webm"
     ts = datetime.datetime.utcnow().isoformat() + "Z"
     entry = {
@@ -1332,6 +1478,7 @@ def health():
     return {
         "status": "ok",
         "use_llm": USE_LLM,
+        "rate_limits": _rate_limits_on(),
         "sample_content_mode": SAMPLE_CONTENT_MODE,
         "auto_sample_fallback": AUTO_SAMPLE_FALLBACK,
         # Probed, not assumed: see transcribe_available(). A key that Groq has
@@ -1380,35 +1527,62 @@ def _tts_cache_path(text: str, lang: str, instructions: str, cache_key: str = ""
     return os.path.join(_TTS_CACHE_DIR, f"{cache_key}.{_OPENAI_TTS_RESPONSE_FORMAT}")
 
 
-@app.post("/tts")
-async def synthesize_speech(payload: dict):
-    """Generate MP3 answer audio using the project's OpenAI API key."""
-    if not _OPENAI_API_KEY:
-        raise HTTPException(status_code=503, detail="TTS not available: OPENAI_API_KEY not set")
+# Spoken answers are signed.  Until 27 November 2026 /tts spoke any text sent
+# to it on the site's OpenAI key, so anyone could use the site as a free
+# text-to-speech service and fill /data with clips.  Now /ask returns the text
+# to speak with an HMAC over it and its cache key, and /tts speaks only text
+# carrying a valid one.  A token never expires: replaying one gets the cached
+# clip, which costs nothing.  Without TTS_SIGNING_KEY set, a random key is made
+# at start-up, so a page loaded before a restart loses its speak button for
+# the answer on screen and gets a fresh token with its next question.
+_TTS_SIGNING_KEY = (os.getenv("TTS_SIGNING_KEY", "").encode() or secrets.token_bytes(32))
+_TTS_LANG_LABELS = {
+    "en": "English", "fr": "French", "de": "German",
+    "es": "Spanish", "zh": "Chinese", "ja": "Japanese",
+}
+_HTML_MARKUP_RE = re.compile(r"</?(?:p|br|em|strong|ul|ol|li|div|span)\b", re.I)
+NO_SOURCE_ANSWER = "I don’t have that detail in the reference material I’m using."
 
-    text = _trim_tts_text(payload.get("text") or "")
-    if not text:
-        raise HTTPException(status_code=400, detail="No text provided")
 
-    lang = (payload.get("lang") or "en").strip().lower()
-    lang_label = {
-        "en": "English",
-        "fr": "French",
-        "de": "German",
-        "es": "Spanish",
-        "zh": "Chinese",
-        "ja": "Japanese",
-    }.get(lang, "English")
-
-    instructions = (
-        f"Speak in clear, natural {lang_label} with a calm museum-docent tone. "
+def _tts_instructions(lang: str) -> str:
+    return (
+        f"Speak in clear, natural {_TTS_LANG_LABELS.get(lang, 'English')} with a calm museum-docent tone. "
         "Avoid sounding synthetic, rushed, or overly animated."
     )
-    cache_hint = (payload.get("cache_key") or "").strip()
-    cache_path = _tts_cache_path(text, lang, instructions, cache_hint)
-    if os.path.exists(cache_path):
-        return FileResponse(cache_path, media_type="audio/wav", headers={"Cache-Control": "no-store"})
 
+
+def _tts_token(text: str, cache_key: str) -> str:
+    return hmac.new(_TTS_SIGNING_KEY, f"{cache_key}\n{text}".encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def _speech_for(result: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    """The text the Ask page speaks for this answer, with its cache key and token.
+
+    The same text the page used to derive itself from answer_short: tags
+    removed when the answer is HTML, line breaks flattened when it is not, then
+    trimmed to the spoken length.
+    """
+    answer = result.get("answer_short") or ""
+    if _HTML_MARKUP_RE.search(answer):
+        answer = html.unescape(re.sub(r"<[^>]+>", "", answer))
+    else:
+        answer = re.sub(r"\n+", " ", answer)
+    text = _trim_tts_text(answer.replace("\xa0", " ").strip())
+    if not text:
+        return None
+    cites = result.get("citations") or [{}]
+    source_id, chunk_id = cites[0].get("source_id"), cites[0].get("chunk_id")
+    if result.get("faq_id"):
+        cache_key = f"faq:{result['faq_id']}:en"
+    elif source_id and chunk_id:
+        cache_key = f"{source_id}:{chunk_id}:en"
+    else:
+        cache_key = ""
+    return {"text": text, "cache_key": cache_key, "token": _tts_token(text, cache_key)}
+
+
+async def _generate_tts(text: str, instructions: str, cache_path: str) -> bytes:
+    """Ask OpenAI for the clip and keep it in the cache.  Raises HTTPException."""
     try:
         async with httpx.AsyncClient(timeout=45.0) as client:
             resp = await client.post(
@@ -1425,23 +1599,133 @@ async def synthesize_speech(payload: dict):
                     "response_format": _OPENAI_TTS_RESPONSE_FORMAT,
                 },
             )
-        if resp.status_code >= 400:
-            detail = resp.text[:500] if resp.text else "OpenAI TTS request failed"
-            raise HTTPException(status_code=502, detail=detail)
-        tmp_path = f"{cache_path}.{uuid.uuid4().hex}.tmp"
-        with open(tmp_path, "wb") as f:
-            f.write(resp.content)
-        os.replace(tmp_path, cache_path)
-        return Response(content=resp.content, media_type="audio/wav", headers={"Cache-Control": "no-store"})
-    except HTTPException:
-        raise
     except Exception as e:
         print(f"[TTS] OpenAI TTS error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    if resp.status_code >= 400:
+        detail = resp.text[:500] if resp.text else "OpenAI TTS request failed"
+        raise HTTPException(status_code=502, detail=detail)
+    tmp_path = f"{cache_path}.{uuid.uuid4().hex}.tmp"
+    with open(tmp_path, "wb") as f:
+        f.write(resp.content)
+    os.replace(tmp_path, cache_path)
+    return resp.content
+
+
+@app.post("/tts")
+async def synthesize_speech(request: Request, payload: dict):
+    """Speak an answer /ask produced, from the cache when it can."""
+    if not _OPENAI_API_KEY:
+        raise HTTPException(status_code=503, detail="TTS not available: OPENAI_API_KEY not set")
+
+    text = _trim_tts_text(str(payload.get("text") or ""))
+    if not text:
+        raise HTTPException(status_code=400, detail="No text provided")
+    cache_hint = str(payload.get("cache_key") or "").strip()
+    token = str(payload.get("token") or "")
+    if not hmac.compare_digest(token.encode(), _tts_token(text, cache_hint).encode()):
+        raise HTTPException(status_code=403, detail="Only answers from Ask the Docent can be spoken.")
+
+    lang = str(payload.get("lang") or "en").strip().lower()
+    if lang not in _TTS_LANG_LABELS:
+        lang = "en"
+    instructions = _tts_instructions(lang)
+    cache_path = _tts_cache_path(text, lang, instructions, cache_hint)
+    if os.path.exists(cache_path):
+        return FileResponse(cache_path, media_type="audio/wav", headers={"Cache-Control": "no-store"})
+
+    # Only a new clip costs money, so only a new clip is counted.
+    _rate_check(request, "tts", RATE_DETAIL_TTS, site_wide=True)
+    audio = await _generate_tts(text, instructions, cache_path)
+    return Response(content=audio, media_type="audio/wav", headers={"Cache-Control": "no-store"})
+
+
+def _tts_warm_items() -> List[Tuple[str, Dict[str, str]]]:
+    """Every spoken answer that is the same whatever the question.
+
+    A record's answer is its whole body (synthesize_extractive), so each FAQ
+    and short has exactly one spoken text; checked for all 377 FAQs on 27
+    November 2026.  The two refusals are fixed sentences.  Answers quoted from
+    the manual or the losses list are built from the question's words and
+    cannot be known in advance, so they are not here.
+    """
+    items: List[Tuple[str, Dict[str, str]]] = []
+    for chunks, source in ((FAQ, "dieselsubs_faq"), (SHORTS, "dieselsubs_shorts")):
+        for ch in chunks:
+            cid = str(ch.get("chunk_id") or "")
+            if source == "dieselsubs_faq" and not cid.startswith(("faq_", "fix_")):
+                continue
+            # The pinned path in /ask: the record's own title is the question.
+            speech = _speech_for(synthesize_extractive(question_text=ch.get("title") or "",
+                                                       hits=[(1.0, ch, source)]))
+            if speech:
+                items.append((cid, speech))
+    for label, text in (("fallback", FALLBACK_ANSWER), ("no_source", NO_SOURCE_ANSWER)):
+        speech = _speech_for({"answer_short": text})
+        if speech:
+            items.append((label, speech))
+    return items
+
+
+@app.post("/admin/tts-warm")
+async def admin_tts_warm(limit: int = 20):
+    """Generate up to `limit` missing clips; call again until remaining is 0.
+
+    Admin only (the /admin/ prefix).  Not counted against the visitor caps.
+    Batches keep each call well inside a request timeout.
+    """
+    if not _OPENAI_API_KEY:
+        raise HTTPException(status_code=503, detail="TTS not available: OPENAI_API_KEY not set")
+    limit = max(1, min(int(limit), 50))
+    instructions = _tts_instructions("en")
+    items = _tts_warm_items()
+    cached = generated = remaining = 0
+    failed: List[Dict[str, Any]] = []
+    for label, speech in items:
+        path = _tts_cache_path(speech["text"], "en", instructions, speech["cache_key"])
+        if os.path.exists(path):
+            cached += 1
+            continue
+        if generated >= limit:
+            remaining += 1
+            continue
+        try:
+            await _generate_tts(speech["text"], instructions, path)
+            generated += 1
+        except HTTPException as e:
+            failed.append({"id": label, "status": e.status_code})
+    return JSONResponse({"items": len(items), "already_cached": cached, "generated": generated,
+                         "failed": failed, "remaining": remaining},
+                        headers={"Cache-Control": "no-store"})
+
+
+@app.get("/admin/client-ip")
+def admin_client_ip(request: Request):
+    """What the rate limits key on for this caller, and where it came from.
+
+    For checking after a deploy that visitors are told apart: if `resolved` is
+    an edge server's address, every visitor shares one count.  Admin only;
+    nothing is stored.
+    """
+    trusted = request.headers.get(CLIENT_IP_HEADER, "").strip()
+    forwarded = [h.strip() for h in request.headers.get("x-forwarded-for", "").split(",") if h.strip()]
+    source = CLIENT_IP_HEADER if trusted else ("x-forwarded-for" if forwarded else "connection peer")
+    names = sorted(k for k in request.headers.keys()
+                   if "forward" in k or k.startswith(("cf-", "true-client", "x-real")))
+    return JSONResponse({
+        "resolved": _client_ip(request),
+        "source": source,
+        "x_forwarded_for": forwarded,
+        "trusted_proxy_hops": TRUSTED_PROXY_HOPS,
+        "client_ip_header": CLIENT_IP_HEADER,
+        "address_headers_present": names,
+        "peer": request.client.host if request.client else None,
+    }, headers={"Cache-Control": "no-store"})
 
 
 @app.post("/transcribe")
 async def transcribe_audio(
+    request: Request,
     audio: UploadFile = File(...),
     lang: str = Form("en"),
 ):
@@ -1458,9 +1742,12 @@ async def transcribe_audio(
             detail="Transcription is unavailable: the speech service rejected this server's credentials.",
         )
 
-    audio_bytes = await audio.read()
+    audio_bytes = await audio.read(TRANSCRIBE_MAX_AUDIO_BYTES + 1)
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="Empty audio")
+    if len(audio_bytes) > TRANSCRIBE_MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail=RATE_DETAIL_TRANSCRIBE)
+    _rate_check(request, "transcribe", RATE_DETAIL_TRANSCRIBE, site_wide=True)
 
     ct = (audio.content_type or "").lower()
     if "mp4" in ct or "mpeg" in ct:
@@ -6615,22 +6902,36 @@ FEEDBACK_PATH = (
 )
 
 @app.post("/feedback")
-def receive_feedback(payload: dict):
+def receive_feedback(request: Request, payload: dict):
     import datetime
-    source = (payload.get("source") or "tour").strip()
+    source = str(payload.get("source") or "tour").strip()[:20]
+    if source == "contact":
+        _rate_check(request, "message", RATE_DETAIL_MESSAGE)
+        # The page stops at 4,000 characters, so a longer message did not come
+        # from it.  Refused, not cut: the sender is told and nothing is lost
+        # silently.
+        if len(str(payload.get("message") or "").strip()) > FEEDBACK_MAX["message"]:
+            raise HTTPException(status_code=413, detail="That message is too long.")
+    else:
+        _rate_check(request, "rating", RATE_DETAIL_RATING)
+
+    def field(name: str) -> str:
+        return str(payload.get(name) or "").strip()[:FEEDBACK_MAX[name]]
+
+    rating = payload.get("rating")
     entry = {
         "ts": datetime.datetime.utcnow().isoformat() + "Z",
         "source": source,                         # "tour" | "contact"
-        "question": (payload.get("question") or "").strip(),
-        "answer": (payload.get("answer") or "").strip(),
-        "rating": payload.get("rating"),          # "up" | "down" | null
-        "comment": (payload.get("comment") or "").strip(),
+        "question": field("question"),
+        "answer": field("answer"),
+        "rating": rating if rating in ("up", "down", None) else None,
+        "comment": field("comment"),
     }
     if source == "contact":
         # Free-form visitor message from the public contact form.
-        entry["name"] = (payload.get("name") or "").strip()
-        entry["email"] = (payload.get("email") or "").strip()
-        entry["message"] = (payload.get("message") or "").strip()
+        entry["name"] = field("name")
+        entry["email"] = field("email")
+        entry["message"] = field("message")
     try:
         with open(FEEDBACK_PATH, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -6702,6 +7003,7 @@ async def update_whisper_prompt(request: Request):
 
 @app.post("/ask")
 def ask(request: Request, payload: dict):
+    _rate_check(request, "ask", RATE_DETAIL_ASK)
     question = (payload.get("question_text") or "").strip()
     compartment = (payload.get("compartment_id") or "").strip()
     playhead_time_ms = int(payload.get("playhead_time_ms") or 0)
@@ -6774,7 +7076,7 @@ def ask(request: Request, payload: dict):
     elif not hits:
         result = {
             "answer_mode": payload.get("answer_mode", "standard") or "standard",
-            "answer_short": "I don’t have that detail in the reference material I’m using.",
+            "answer_short": NO_SOURCE_ANSWER,
             "answer_deep": None,
             "what_you_are_seeing": None,
             "citations": [],
@@ -6813,6 +7115,9 @@ def ask(request: Request, payload: dict):
             cite = (result.get("citations") or [{}])[0]
             _append_ask_log(question, None, museum_id, {"source_id": cite.get("chunk_id"), "via": via,
                                                         "answer": result.get("answer_short") or ""})
+    speech = _speech_for(result)
+    if speech:
+        result["speech"] = speech
     return result
 
 

@@ -119,6 +119,17 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
+        // A refusal gets plain words, not a status code (27 Nov 2026).
+        if (res.status === 429) {
+          statusEl.textContent = "You've sent several messages in the last hour. Please try again later, or email irving@submarinedocent.org.";
+          statusEl.className = 'ms-3 text-warning';
+          return;
+        }
+        if (res.status === 413) {
+          statusEl.textContent = 'Your message is too long. Please shorten it and send it again.';
+          statusEl.className = 'ms-3 text-warning';
+          return;
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         form.reset();
         statusEl.textContent = 'Thank you! Your message was sent.';

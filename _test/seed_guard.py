@@ -32,6 +32,11 @@ def load_app(copy=None):
     if REPO not in sys.path:
         sys.path.insert(0, REPO)
     os.environ["CONTENT_ROOT"] = want
+    # Every in-process request comes from the one test client, so the visitor
+    # rate limits would refuse a test after its twentieth question.  They are
+    # off here unless a test asks for them; _test/test_rate_limits.py turns
+    # them on.
+    os.environ.setdefault("RATE_LIMITS", "off")
     from api import main as m
     loaded = os.path.realpath(m.CORPORA_DIR)
     if loaded != want or m.SAMPLE_CONTENT_MODE:

@@ -947,21 +947,36 @@
       answerSpeakBtn.disabled = true;
     }
 
+    // What a visitor reads when the site refuses or cannot answer (wording
+    // approved by Irving, 27 Nov 2026).  Never a raw "Error: HTTP 429".
+    const MSG_ASK_LIMIT = "You're asking faster than the docent can answer. Please wait a minute, then try again.";
+    const MSG_BUSY = 'The docent is helping a lot of visitors right now. Please try again in a minute.';
+    const MSG_TTS_PAUSED = 'Spoken answers are paused for now. The written answer is above.';
+    const MSG_VOICE_PAUSED = 'Voice questions are paused for a moment. Type your question below.';
+
+    function showTtsPaused() {
+      hideAnswerSpeakButton();
+      askStatus.style.display = '';
+      askStatus.textContent = MSG_TTS_PAUSED;
+    }
+
     function clearAnswerAudioPrefetch() {
       _answerAudioPrefetchKey = '';
       _answerAudioPrefetchPromise = null;
       _answerAudioPrefetchBuffer = null;
     }
 
+    // The server says what to speak: /ask returns the text with a signature,
+    // and /tts speaks nothing else (27 Nov 2026).  No speech, no server audio.
     function buildServerTtsPrefetch(data, answerPlain) {
-      if (!ttsAvailable || !answerPlain) return null;
-      const citationSourceId = data.citations && data.citations[0] && data.citations[0].source_id;
-      const chunkId = data.citations && data.citations[0] && data.citations[0].chunk_id;
+      if (!ttsAvailable || !answerPlain || !data.speech) return null;
       const s = loadSettings();
-      const stableAudioCacheKey = data.faq_id
-        ? `faq:${data.faq_id}:${s.lang}`
-        : (citationSourceId && chunkId ? `${citationSourceId}:${chunkId}:${s.lang}` : '');
-      const payload = { text: answerPlain, lang: s.lang || 'en', cache_key: stableAudioCacheKey };
+      const payload = {
+        text: data.speech.text,
+        lang: s.lang || 'en',
+        cache_key: data.speech.cache_key,
+        token: data.speech.token,
+      };
       return {
         key: JSON.stringify(payload),
         apiBase: s.apiBase,
@@ -978,7 +993,13 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(req.payload),
-      }).then(res => res.ok ? res.arrayBuffer() : null).then(arrayBuf => {
+      }).then(res => {
+        if (res.status === 429) {
+          if (_answerAudioPrefetchKey === req.key) showTtsPaused();
+          return null;
+        }
+        return res.ok ? res.arrayBuffer() : null;
+      }).then(arrayBuf => {
         if (_answerAudioPrefetchKey === req.key) _answerAudioPrefetchBuffer = arrayBuf;
         return arrayBuf;
       }).catch(() => null);
@@ -1311,11 +1332,7 @@
     async function playFaqAudioOrSpeak(data, answerPlain) {
       stopAnswerAudio();
 
-      const citationSourceId = data.citations && data.citations[0] && data.citations[0].source_id;
-      const chunkId = data.citations && data.citations[0] && data.citations[0].chunk_id;
-      const stableAudioCacheKey = data.faq_id
-        ? `faq:${data.faq_id}:${loadSettings().lang}`
-        : (citationSourceId && chunkId ? `${citationSourceId}:${chunkId}:${loadSettings().lang}` : '');
+      const serverTts = buildServerTtsPrefetch(data, answerPlain);
 
       // If the answer is only a partial match, play the "no direct answer"
       // audio clip first, then play the answer audio as usual.
@@ -1337,7 +1354,7 @@
 
       const s = loadSettings();
       // 1. Project-owned server TTS — preferred over visitor-supplied keys
-      if (ttsAvailable) {
+      if (serverTts) {
         const prefetchedAudio = getPrefetchedAnswerAudio(data, answerPlain);
         if (prefetchedAudio) {
           askStatus.textContent = '⏳ Generating audio…';
@@ -1355,8 +1372,13 @@
           const res = await fetch(`${s.apiBase}/tts`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: answerPlain, lang: s.lang || 'en', cache_key: stableAudioCacheKey }),
+            body: JSON.stringify(serverTts.payload),
           });
+          if (res.status === 429) {
+            showTtsPaused();
+            resetSpeakBtn();
+            return;
+          }
           if (res.ok) {
             const arrayBuf = await res.arrayBuffer();
             playArrayBuffer(arrayBuf, resetSpeakBtn);
@@ -1429,7 +1451,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const err = new Error(`HTTP ${res.status}`);
+        err.status = res.status;
+        throw err;
+      }
       return res.json();
     }
 
@@ -1819,6 +1845,10 @@
 
           try {
             const resp = await fetch(`${s.apiBase}/transcribe`, { method: 'POST', body: form });
+            if (resp.status === 429 || resp.status === 413) {
+              showTextFallback(MSG_VOICE_PAUSED);
+              return;
+            }
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             const transcript = (data.transcript || '').trim();
@@ -2229,7 +2259,10 @@
         showFeedback(question, answerPlain);
         showAnswerSpeakButton(data, answerPlain);
       } catch (err) {
-        answerText.textContent = `Error: ${err.message}`;
+        // 429 is this visitor's own limit; anything else (a 502 while the
+        // server restarts, a dropped connection) reads as a busy docent.
+        answerText.textContent = err.status === 429 ? MSG_ASK_LIMIT : MSG_BUSY;
+        if (DEBUG) console.warn('[ask]', err);
         hideAnswerSpeakButton();
         answerDebug.textContent = DEBUG ? `API: ${loadSettings().apiBase}` : '';
         askStatus.textContent = '';
